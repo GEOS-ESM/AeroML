@@ -1,0 +1,21 @@
+AeroML:
+  fixture: true
+  develop: main
+
+env:
+  local: ./@env
+  remote: ../ESMA_env.git
+  tag: v3.2.2
+  develop: main
+
+cmake:
+  local: ./@cmake
+  remote: ../ESMA_cmake.git
+  tag: v3.4.7
+  develop: develop
+
+ecbuild:
+  local: ./@cmake@/@ecbuild
+  remote: ../ecbuild.git
+  tag: geos/v1.0.6
+

@@ -2,6 +2,8 @@
 # Cmake rules for creating python modules with f2py and 
 #
 
+# The OVERRIDE tells esma_set_this() to name the library as
+# what we set here rather than the name of the directory
 esma_set_this ( OVERRIDE GMAOpyobs )
 
 # cmake requirements

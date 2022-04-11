@@ -59,6 +59,12 @@ if (NOT CMAKE_BUILD_TYPE)
   esma_add_subdirectory(env)
   esma_add_subdirectory(src)
 
+# https://www.scivision.dev/cmake-auto-gitignore-build-dir/
+# --- auto-ignore build directory
+  if(NOT EXISTS ${PROJECT_BINARY_DIR}/.gitignore)
+    file(WRITE ${PROJECT_BINARY_DIR}/.gitignore "*")
+  endif()
+
 # Piggyback that file into install
 # --------------------------------
   install(

@@ -13,23 +13,36 @@ project (
   VERSION 1.0.0
   LANGUAGES Fortran CXX C)  # Note - CXX is required for ESMF
 
+# Enforce out of source directory builds
+# --------------------------------------
+  if ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+      message(SEND_ERROR "In-source builds are disabled. Please
+              issue cmake command in separate build directory.")
+  endif ("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+
 # Set the default build type to release
 # -------------------------------------
-  if (NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
+  
      message (STATUS "Setting build type to 'Release' as none was specified.")
      set (CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+     
      # Set the possible values of build type for cmake-gui
+     # ---------------------------------------------------
      set_property (CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-     "Debug" "Release" "Aggressive") 
+                   "Debug" "Release" "Aggressive") 
   endif ()
 
-# What is this?
-# -------------
-  foreach (dir IN LISTS ESMA_CMAKE_DIRS)
+# Where to find relevant cmake macros
+# -----------------------------------
+  foreach (dir cmake @cmake cmake@)
      if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/${dir})
-         list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}")
+       list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}")
+       set (ESMA_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}/${dir}"
+            CACHE PATH "Path to ESMA_cmake code")
      endif ()
    endforeach ()
+
    include (esma)
 
    ecbuild_declare_project()

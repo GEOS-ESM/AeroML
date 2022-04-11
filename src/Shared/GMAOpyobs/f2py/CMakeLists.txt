@@ -2,7 +2,7 @@
 # Cmake rules for creating python modules with f2py and 
 #
 
-set ( this GMAOpyobs )
+esma_set_this ( OVERRIDE GMAOpyobs )
 
 # cmake requirements
 # ------------------

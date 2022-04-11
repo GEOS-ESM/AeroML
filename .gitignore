@@ -12,6 +12,3 @@
 /install*/
 /.mepo/
 parallel_build.o*
-/src/Shared/GMAO_Shared/MAPL@/
-/src/Shared/GMAO_Shared/MAPL/
-/src/Shared/GMAO_Shared/@MAPL/

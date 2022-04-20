@@ -1,5 +1,10 @@
 *~
+*__pycache__
+*.ipynb_checkpoints/
+*.pkl
 *.nc
+*npy
+*.DS_Store
 *.npz
 /cmake/
 /@cmake/

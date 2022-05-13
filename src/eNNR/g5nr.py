@@ -190,7 +190,7 @@ class G5NR(object):
       
     # Record number of observations
     # -----------------------------
-    self.nobs = len(self.lon) 
+    self.nobs = self.variables.shape[0]
 
 #---
   def reduce(self,I):
@@ -202,7 +202,7 @@ class G5NR(object):
       #print "{} Reducing "+name,q.shape
       self.__dict__[name] = q[I]
 
-    self.nobs = len(self.lon)
+    self.nobs = self.variables.shape[0]
 
 
 #---

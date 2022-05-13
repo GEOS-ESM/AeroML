@@ -297,13 +297,12 @@ class FEATURES(G5NR):
             # Surface
             # -------
             R = self.__dict__('Sre'+wave)
-            I = self.__dict__('SreI'+wave)
             U = self.__dict__('SreU'+wave)
             Q = self.__dict__('SreQ'+wave)
 
             iValid = iValid \
-                   & (R>=0) & (I>=0) & (U>=0) & (Q>=10) \
-                   & (R<10) & (I<10) & (U<10) & (Q<10)
+                   & (R>=0) & (U>=0) & (Q>=10) \
+                   & (R<10) & (U<10) & (Q<10)
 
 
         # If any of the angles are bad, toss out the other angles

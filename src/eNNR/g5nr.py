@@ -6,6 +6,7 @@ import sys
 from types     import *
 from datetime  import date, datetime, timedelta
 import numpy   as np
+
 from dateutil.parser import parse as isoparse
 
 from npz       import NPZ
@@ -13,7 +14,7 @@ from npz       import NPZ
 Wavelengths = ( '360', '380', '410', '550', '670', '870', '1550', '1650' )
     
 Meta =  ( # "Latitude",
-          # "Longitude",
+#           "Longitude",
           "SolarZenith",
           "SolarAzimuth",
           "SensorZenith",
@@ -61,7 +62,6 @@ pFeatures = Features + \
               'I670',
               'I870',
               'I940',
-
               'I1230',
               'I1380',
               'I1550',
@@ -113,10 +113,10 @@ pFeatures = Features + \
               )
 
 
-Alias = dict(
-           Latitude  = 'lat',
-           Longitude = 'lon',
-        )
+Alias = {
+           'Latitude'  : 'lat',
+           'Longitude' : 'lon',
+        }
 
 MISSING = 1E15
 
@@ -130,71 +130,73 @@ class G5NR(object):
 
   def __init__ (self,Files,Names):
     """
-     Creates an GIANT object defining the attributes corresponding
+     Creates a G5NR object defining the attributes corresponding
      to the SDS of interest.
     """
 
     self.variables = []
-
+    
     # Ingest select data
     # ------------------
     for filename in Files:
       
-      f = np.load(filename)
+        f = np.load(filename)
 
-      for v in f:
-        print(v)
-      
-      for name in Names:
-        
-        v = f[name]
-        rank = len(v.shape)
-        if rank == 1:
-          data = v[:]
-        elif rank==2:
-          data = v[:,:]
-        elif rank==3:
-          data = v[:,:,:]
-        else:
-          raise ValueError('variable %s has invalid rank %d'%(name,rank))
-        if name in Alias:
-          name = self.ALias[name]
+        for name in f:
+            if name in Names:
+                v = f[name]
+                rank = len(v.shape)
+                if rank == 1:
+                    data = v[:]
+                elif rank==2:
+                    data = v[:,:]
+                else:
+                    raise ValueError('variable %s has invalid rank %d'%(name,rank))
 
-        self.__dict__[name] = data
-        self.variables.append(name)
+                if name in Alias:
+                    name = self.Alias[name]
+                    
+                self.__dict__[name] = data
+                if name not in self.variables:
+                    
+                    self.variables.append(name) # avoid duplicates
 
-      f.close()
+        f.close()
 
     # Compute key angles
     # ------------------
     d2r = np.pi / 180.
     r2d = 180. / np.pi
-    if 'SensorZenith' in self.variables:
+    if "SensorZenith" in self.variables:
 
-      # Glint angle
-      # -----------
-      RelativeAzimuth = np.abs(self.SolarAzimuth - self.SensorAzimuth - 180.)
-      cosGlintAngle   = np.cos(self.SolarZenith*d2r) * np.cos(self.SensorZenith*d2r) + \
+        # Glint angle
+        # -----------
+        RelativeAzimuth = np.abs(self.SolarAzimuth - self.SensorAzimuth - 180.)
+        cosGlintAngle   = np.cos(self.SolarZenith*d2r) * np.cos(self.SensorZenith*d2r) + \
                         np.sin(self.SolarZenith*d2r) * np.sin(self.SensorZenith*d2r) * \
                         np.cos(RelativeAzimuth*d2r)        
-      J = (np.abs(cosGlintAngle)<=1.0)
-      self.GlintAngle = MISSING * np.ones(cosGlintAngle.shape)
-      self.GlintAngle[J] = np.arccos(cosGlintAngle[J])*r2d
-       
-      # Scattering angle
-      # ----------------
-      cosScatAngle  = -np.cos(self.SolarZenith*d2r) * np.cos(self.SensorZenith*d2r) + \
+        J = (np.abs(cosGlintAngle)<=1.0)
+        self.GlintAngle = MISSING * np.ones(cosGlintAngle.shape)
+        self.GlintAngle[J] = np.arccos(cosGlintAngle[J])*r2d
+
+        # Scattering angle
+        # ----------------
+        cosScatAngle  = -np.cos(self.SolarZenith*d2r) * np.cos(self.SensorZenith*d2r) + \
                        np.sin(self.SolarZenith*d2r) * np.sin(self.SensorZenith*d2r) * \
                        np.cos(RelativeAzimuth*d2r)
-      J = (abs(cosScatAngle)<=1.0)
-      self.ScatteringAngle = MISSING * np.ones(cosScatAngle.shape)
-      self.ScatteringAngle[J] = np.arccos(cosScatAngle[J])*r2d
+        J = (abs(cosScatAngle)<=1.0)
+        self.ScatteringAngle = MISSING * np.ones(cosScatAngle.shape)
+        self.ScatteringAngle[J] = np.arccos(cosScatAngle[J])*r2d
 
-      self.variables += [ 'GintAngle', 'ScatteringAngle' ]
-      
+        self.variables = [ 'GlintAngle', 'ScatteringAngle' ] + self.variables
+
+    # Polarimeter?
+    # ------------
+    self.polarimeter = 'U550' in self.variables # adhoc polarimeter detection
+        
     # Record number of observations
     # -----------------------------
-    self.nobs = 
+    self.nobs = self.__dict__[self.variables[0]].shape[0]
 
 #---
   def reduce(self,I):
@@ -202,79 +204,84 @@ class G5NR(object):
     Reduce observations according to index I. 
     """
     for name in self.variables:
-      q = self.__dict__[name]
-      #print "{} Reducing "+name,q.shape
-      self.__dict__[name] = q[I]
+        q = self.__dict__[name]
+        # print("{} Reducing "+name,q.shape)
+        self.__dict__[name] = q[I]
 
-    self.nobs = self.variables.shape[0]
+    self.nobs = self.__dict__[self.variables[0]].shape[0]
 
 
 #---
   def toDataFrame(self,Vars=None,index='tyme'):
-        """
-        Return variables as a DataFrame.
-        """
-        import pandas as pd
-        VARS = dict()
-        if Vars is None:
-            for name in self.variables:
-                VARS[name] = self.__dict__[name]
+      """
+      Return variables as a DataFrame.
+      """
+      import pandas as pd
+
+      if Vars is None:
+        Vars = self.variables
+
+      VARS = dict()
+      for name in Vars:
+        v = self.__dict__[name]
+        rank = len(v.shape)
+        if rank == 1:
+          VARS[name] = v[:] # 1D array
+        elif rank == 2:
+          for angle in range(v.shape[1]):
+            VARS[name+'.%02d'%(angle+1)] = v[:,angle] # 1D array
         else:
-            for name in Vars:
-                VARS[name] = self.__dict__[name]
-                    
-        df = pd.DataFrame(VARS,index=self.__dict__[index])
-        df[df==MISSING] = np.nan
-        return df
+          raise ValueError('variable %s has invalid rank %d'%(name,rank))
+                
+      df = pd.DataFrame(VARS)
+      df[df==MISSING] = np.nan
+      
+      return df
            
 #---
 
-class TARGET(G5NR):
+class G5NR_QC(G5NR):
     """
-    Handle targets, typically AOD and absorption AOD (AAOD).
+    Handle target, features and angles, eliminating bad data.
     """
-    def __init__(self,Files=None,GlintTresh=40.):
+    def __init__(self,Files=None,target=Target,features=Features,GlintThresh=10.):
         """
-        Read files and optionally provide Q/C.
+        Read files and apply Q/C.
         """
+
+        # Default file names
+        # ------------------
         if Files is None:
-            Files = ['data/inclined.target.npz','data/polar.target.npz'],
-        G5NR.__init__(self,Files=Files, Names=Meta+Target)
-        self.reduce(self.filter(GlintTresh=GlintTresh))
+            Files = ['data/inclined.features.npz','data/polar.features.npz',
+                     'data/inclined.target.npz','data/polar.target.npz',]
 
-    def filter(self,GlintTresh=40.):
+        self.target = target
+        self.features = features
+            
+        # Raw data
+        # --------
+        G5NR.__init__(self,Files=Files,Names=Meta+features+target)
 
-        iValid = ones(self.nobs,dtype=bool)
+        # Screen out bad data
+        # -------------------
+        self.reduce(self.filter(GlintThresh=GlintThresh))
 
-        # Check Tau
-        # ---------
-
-        # If any of the angles are bad, toss out the other angles
-        # -------------------------------------------------------
-        iValid = iValid.prod(axis=1).astype(bool)
-
-        return iValid
+        # Degree of linear polarization
+        # -----------------------------
+        if self.polarimeter:
+            for wave in Wavelengths:
+                I = self.__dict__['I'+wave]
+                U = self.__dict__['U'+wave]
+                Q = self.__dict__['Q'+wave]
+                self.__dict__['DoLP'+wave] = np.sqrt(U**2 + Q**2) / I
+                self.variables += ['DoLP'+wave,]
         
-class FEATURES(G5NR):
-    """
-    Handle features, reflectances and angles.
-    """
-    def __init__(self,Files=None,GlintTresh=40.):
-        """
-        Read files and optionally provide Q/C.
-        """
-        if Files is None:
-            Files = ['data/inclined.features.npz','data/polar.features.npz']
-        G5NR.__init__(self,Files=Files,Names=Meta+Features)
-
-        self.reduce(self.filter(GlintTresh=GlintTresh))
-
-    def filter(self,GlintTresh=40.):
+    def filter(self,GlintThresh):
         """
         Return indices of good observations.
         """
         
-        iValid = ones(self.GlintAngle.shape,dtype=bool)
+        iValid = np.ones(self.GlintAngle.shape,dtype=bool)
 
         # Angles
         # ------
@@ -283,35 +290,49 @@ class FEATURES(G5NR):
                & ( np.abs(self.ScatteringAngle) != MISSING ) \
                & ( self.GlintAngle > GlintThresh)
 
-        # For each wavelength
-        # -------------------
+        # Intensities
+        # -----------
         for wave in Wavelengths:
 
-            # TOA
-            # ---
-            R = self.__dict__('Ref'+wave)
-            I = self.__dict__('I'+wave)
-            U = self.__dict__('U'+wave)
-            Q = self.__dict__('Q'+wave)
-
+            R  = self.__dict__['Ref'+wave]  # TOA
+            sR = self.__dict__['Sre'+wave]  # surface
             iValid = iValid \
-                   & (R>=0) & (I>=0) & (U>=0) & (Q>=10) \
-                   & (R<10) & (I<10) & (U<10) & (Q<10)
+                   & (R>=0) & (sR>=0) \
+                   & (R<10) & (sR<10)
 
-            # Surface
-            # -------
-            R = self.__dict__('Sre'+wave)
-            U = self.__dict__('SreU'+wave)
-            Q = self.__dict__('SreQ'+wave)
+        # Polarization
+        # ------------
+        if self.polarimeter:
+            for wave in Wavelengths:
 
-            iValid = iValid \
-                   & (R>=0) & (U>=0) & (Q>=10) \
-                   & (R<10) & (U<10) & (Q<10)
+                # TOA
+                # ---
+                I = self.__dict__['I'+wave]
+                U = self.__dict__['U'+wave]
+                Q = self.__dict__['Q'+wave]
 
+                iValid = iValid \
+                       & (I>=0) \
+                       & (I<10) & (np.abs(U)<10) & (np.abs(Q)<10)
+
+                # Surface
+                # -------
+                sU = self.__dict__['SreU'+wave]
+                sQ = self.__dict__['SreQ'+wave]
+
+                iValid = iValid & (np.abs(sU)<10) & (np.abs(sQ)<10)
 
         # If any of the angles are bad, toss out the other angles
         # -------------------------------------------------------
         iValid = iValid.prod(axis=1).astype(bool)
+        
+        # Targets
+        # -------
+        for v in self.target:
+            tau = self.__dict__[v]
+            iValid = iValid & (tau>0) & (tau<10)
+
+        print(f"any valid? {np.any(iValid)}")       
 
         # All done, return indices of good observatins
         # --------------------------------------------
@@ -321,13 +342,10 @@ class FEATURES(G5NR):
 
 if __name__ == "__main__":
 
-    aqua = 'data/giant_C6_10km_Aqua_20151005.nc'
-    terra = 'data/giant_C6_10km_Terra_20150921.nc'
+    x = G5NR_QC()
+    # p = G5NR_QC(features=pFeatures)
 
-    filename = terra
-    
-#    lnd = LAND(filename)
-    ocn = OCEAN(filename)
-#    dpb = DEEP(filename)
-
+    print("Features and Targets")
+    df = x.toDataFrame()
+    df.describe()
 

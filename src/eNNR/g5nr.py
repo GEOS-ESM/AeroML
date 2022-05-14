@@ -61,6 +61,7 @@ pFeatures = Features + \
               'I670',
               'I870',
               'I940',
+
               'I1230',
               'I1380',
               'I1550',
@@ -112,10 +113,10 @@ pFeatures = Features + \
               )
 
 
-Alias = {
-           Latitude  : 'lat',
-           Longitude : 'lon',
-        }
+Alias = dict(
+           Latitude  = 'lat',
+           Longitude = 'lon',
+        )
 
 MISSING = 1E15
 
@@ -140,7 +141,10 @@ class G5NR(object):
     for filename in Files:
       
       f = np.load(filename)
-    
+
+      for v in f:
+        print(v)
+      
       for name in Names:
         
         v = f[name]
@@ -163,9 +167,9 @@ class G5NR(object):
 
     # Compute key angles
     # ------------------
-    d2r = pi / 180.
-    r2d = 180. / pi
-    if SensorZenith in self.variables:
+    d2r = np.pi / 180.
+    r2d = 180. / np.pi
+    if 'SensorZenith' in self.variables:
 
       # Glint angle
       # -----------
@@ -190,7 +194,7 @@ class G5NR(object):
       
     # Record number of observations
     # -----------------------------
-    self.nobs = self.variables.shape[0]
+    self.nobs = 
 
 #---
   def reduce(self,I):
@@ -229,7 +233,7 @@ class TARGET(G5NR):
     """
     Handle targets, typically AOD and absorption AOD (AAOD).
     """
-    def __init__(self,Files=None,GlintTresh=40.)
+    def __init__(self,Files=None,GlintTresh=40.):
         """
         Read files and optionally provide Q/C.
         """
@@ -255,12 +259,12 @@ class FEATURES(G5NR):
     """
     Handle features, reflectances and angles.
     """
-    def __init__(self,Files,GlintTresh=40.):
+    def __init__(self,Files=None,GlintTresh=40.):
         """
         Read files and optionally provide Q/C.
         """
         if Files is None:
-            Files = ['data/inclined.target.npz','data/polar.target.npz'],
+            Files = ['data/inclined.features.npz','data/polar.features.npz']
         G5NR.__init__(self,Files=Files,Names=Meta+Features)
 
         self.reduce(self.filter(GlintTresh=GlintTresh))
@@ -326,4 +330,4 @@ if __name__ == "__main__":
     ocn = OCEAN(filename)
 #    dpb = DEEP(filename)
 
-GlintTresh=40.):
+

@@ -1,4 +1,4 @@
-# Data for eNNR Experimentation
+# Data for NNR Experimentation
 
-Add symlinks here for datasets of interest. Notice that '*.nc' and '*.npz' are includes in .gitignore.
+Add symlinks here for datasets of interest. Notice that '*.nc' and '*.npz' are excluded by .gitignore.
 

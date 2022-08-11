@@ -6,7 +6,7 @@ import os, sys, subprocess
 from   datetime               import date, datetime, timedelta
 from   dateutil.parser        import parse
 from   dateutil.relativedelta import relativedelta
-from   pyhdf.SD               import SD, HDF4Error
+#from   pyhdf.SD               import SD, HDF4Error
 import numpy                  as     np
 from   glob                   import glob
 from   scipy.interpolate      import RegularGridInterpolator

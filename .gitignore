@@ -2,6 +2,7 @@
 ~$*
 *.nc
 *.npz
+.#*
 /cmake/
 /@cmake/
 /cmake@/

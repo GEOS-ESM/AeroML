@@ -9,8 +9,6 @@ import numpy   as np
 
 from dateutil.parser import parse as isoparse
 
-from npz       import NPZ
-
 Wavelengths = ( '360', '380', '410', '550', '670', '870', '1550', '1650' )
     
 Meta =  ( # "Latitude",
@@ -244,7 +242,7 @@ class G5NR_QC(G5NR):
     """
     Handle target, features and angles, eliminating bad data.
     """
-    def __init__(self,Files=None,target=Target,features=Features,GlintThresh=10.):
+    def __init__(self,Files=None,Dir='.',target=Target,features=Features,GlintThresh=10.):
         """
         Read files and apply Q/C.
         """
@@ -252,8 +250,8 @@ class G5NR_QC(G5NR):
         # Default file names
         # ------------------
         if Files is None:
-            Files = ['data/inclined.features.npz','data/polar.features.npz',
-                     'data/inclined.target.npz','data/polar.target.npz',]
+            Files = [Dir+'/data/inclined.features.npz',Dir+'/data/polar.features.npz',
+                     Dir+'/data/inclined.target.npz',Dir+'/data/polar.target.npz',]
 
         self.target = target
         self.features = features
@@ -332,7 +330,7 @@ class G5NR_QC(G5NR):
             tau = self.__dict__[v]
             iValid = iValid & (tau>0) & (tau<10)
 
-        print(f"any valid? {np.any(iValid)}")       
+        # print(f"any valid? {np.any(iValid)}")       
 
         # All done, return indices of good observatins
         # --------------------------------------------

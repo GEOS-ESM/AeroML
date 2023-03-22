@@ -17,7 +17,7 @@ from   numpy             import  meshgrid, concatenate
 import numpy             as      np
 from   matplotlib        import  ticker
 from   scipy             import  stats, mgrid
-from   sklearn.cross_validation import KFold
+from   sklearn.model_selection import KFold
 #..............................................................
 class aodFormat(ticker.Formatter):
     def __call__(self,x,pos=None):
@@ -86,8 +86,8 @@ class NN(object):
         # -----
         bounds = [bounds]*self.net.get_params()['conec'].shape[0]
         if self.verbose>0:
-            print "Starting training with %s inputs and %s targets"\
-                  %(str(inputs.shape),str(targets.shape))
+            print("Starting training with %s inputs and %s targets"\
+                  %(str(inputs.shape),str(targets.shape)))
         self.net.train_tnc(inputs,targets, maxfun=maxfun,bounds=bounds,**kwargs)
 #        self.net.train_bfgs(inputs,targets, maxfun=maxfun)
 
@@ -160,22 +160,22 @@ class NN(object):
         Returns: inputs
         """
         if self.verbose:
-            print " "
-            print "       Feature          Min      Max"
-            print "  ------------------  -------  -------"
+            print(" ")
+            print("       Feature          Min      Max")
+            print("  ------------------  -------  -------")
         if Input==None:
             Input = self.Input
         inputs = self.__dict__[Input[0]][I]
         if self.verbose:
-            print "%20s %8.4f %8.4f"%(Input[0],inputs.min(),inputs.max())
+            print("%20s %8.4f %8.4f"%(Input[0],inputs.min(),inputs.max()))
         for var in Input[1:]:
             q = self.__dict__[var][I]
             inputs = cat[inputs,q]
             if self.verbose:
-                print "%20s %8.4f %8.4f"%(var,q.min(),q.max())
+                print("%20s %8.4f %8.4f"%(var,q.min(),q.max()))
         if self.verbose:
-            print "  ------------------  -------  -------"
-            print ""
+            print("  ------------------  -------  -------")
+            print("")
 
         if len(inputs.shape) == 1:
             inputs.shape = (inputs.shape[0],1)            
@@ -225,14 +225,14 @@ class NN(object):
         if figfile != None:
             savefig(figfile)
             
-    def plotScat(self,bins=None,I=None,figfile=None):
+    def plotScat(self,iTarget=0,bins=None,I=None,figfile=None):
         """
-        Plot Target vs Model using a 2D Kernel Density Estime.
+        Plot Target vs Model as a scatter plot
         """
         if I is None: I = self.iTest # Testing data by default
-        results = self.eval(I)
-        targets = self.getTargets(I)
-        original = log(self.__dict__['m'+self.Target[0][1:]][I] + 0.01)
+        results = self.eval(I)[:,iTarget]
+        targets = self.getTargets(I)[:,iTarget]
+        original = log(self.__dict__['m'+self.Target[iTarget][1:]][I] + 0.01)
         if bins == None:
             bins = arange(-5., 1., 0.1 )
 
@@ -244,7 +244,7 @@ class NN(object):
         grid()
         xlabel('AERONET')
         ylabel('MODIS')
-        title("Log("+self.Target[0][1:]+"+0.01) - "+self.ident)
+        title("Log("+self.Target[iTarget][1:]+"+0.01) - "+self.ident)
         if figfile != None:
             savefig(figfile)
 #---------------------------------------------------------------------------------
@@ -268,7 +268,7 @@ def _plotKDE(x_values,y_values,x_bins=None,y_bins=None,
         Nx = len(x_bins)
         Ny = len(y_bins)
 
-        print "Evaluating 2D kernel on grid with (Nx,Ny)=(%d,%d) ..."%(Nx,Ny)
+        print("Evaluating 2D kernel on grid with (Nx,Ny)=(%d,%d) ..."%(Nx,Ny))
         kernel = stats.kde.gaussian_kde(_cat2(x_values,y_values))
         X, Y = meshgrid(x_bins,y_bins)   # each has shape (Ny,Nx)
         Z = kernel(_cat2(X,Y))           # shape is (Ny*Nx)

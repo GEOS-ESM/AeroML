@@ -6,7 +6,6 @@
 """
 
 import os, sys
-sys.path.insert(0,'/home/pcastell/Enthought/Canopy_64bit/System/lib/python2.7/site-packages')
 from   matplotlib.pyplot    import  cm, imshow, plot, figure
 from   matplotlib.pyplot    import  xlabel, ylabel, title, grid, savefig, legend
 import matplotlib.pyplot    as      plt
@@ -26,6 +25,7 @@ from   abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Is
 from   abc_c6_aux           import make_plots, make_error_pdfs, TestStats, SummaryPDFs
 from   brdf                 import rtlsReflectance
 from   mcd43c               import BRDF
+from functools import reduce
 
 # ------
 MODVARNAMES = {'mRef470': 'MOD04 470 nm Reflectance',
@@ -85,6 +85,7 @@ class SETUP(object):
     # -----------------
     self.expid   = expid
     self.Target  = Target
+    self.nTarget = len(Target)
     self.K       = K
     self.nHidden = nHidden
       
@@ -92,7 +93,7 @@ class SETUP(object):
     # No aerosol type should make up more that 35% 
     # of the total number of obs
     # --------------------------------------
-    self.iValid = self.balance(self.nobs*0.35)
+    self.iValid = self.balance(int(self.nobs*0.35))
 
     # Flatten Input_nnr into one list
     # -------------------------------
@@ -107,8 +108,8 @@ class SETUP(object):
           
     # Initialize arrays to hold stats
     # ------------------------------
-    self.nnr  = STATS(K,self.comblist)
-    self.orig = STATS(K,self.comblist)
+    self.nnr  = STATS(K,self.comblist,self.nTarget)
+    self.orig = STATS(K,self.comblist,self.nTarget)
 
     # Initialize K-folding
     # --------------------
@@ -147,14 +148,15 @@ class ABC(object):
     Common Subroutines to all the ABC Classes
     """
 
-    def __init__(self,fname,Albedo,coxmunk_lut=None):
+    def __init__(self,fname,Albedo,coxmunk_lut=None,NDVI=False):
 
         # Get Auxiliary Data
         self.setfnameRoot(fname)
         self.setWind()
         self.setAlbedo(Albedo,coxmunk_lut=coxmunk_lut)
         self.setSpec()
-        self.setNDVI()
+        if NDVI:
+            self.setNDVI()
 
     def setfnameRoot(self,fname):
         if self.sat == 'Aqua':
@@ -197,8 +199,11 @@ class ABC(object):
     def setCoxMunkBRF(self,albedo):
         # Read in Cox Munk Bidirectional surface reflectance
         # --------------------------------------------------
-        self.__dict__[albedo] = squeeze(load(self.fnameRoot+'_CoxMunkBRF.npz')[albedo])
-        self.giantList.append(albedo)
+        names = ['470','550','660','870','1200','1600','2100']
+        for ch in names:
+            name = 'CxAlbedo' + ch
+            self.__dict__[name] = squeeze(load(self.fnameRoot+'_CxAlbedo.npz')[name])
+            self.giantList.append(name)
 
     def setBRDF(self):
         # Read in MCD43C1 BRDF
@@ -237,13 +242,13 @@ class ABC(object):
         if outliers > 0.:
             d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
             if self.verbose>0:
-                print "Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,std(d),d.size)
+                print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,std(d),d.size))
             for iter in range(3):
                 iValid = (abs(d)<outliers*std(d))
                 self.iValid[self.iValid] = iValid
                 d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
                 if self.verbose>0:
-                    print "Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size)
+                    print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size))
               
     def angleTranform(self):            
         # Angle transforms: for NN work we work with cosine of angles
@@ -283,7 +288,8 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                   cloud_thresh=0.70,
                   glint_thresh=40.0,
                   Albedo=None,
-                  aFilter=None):
+                  aFilter=None,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Ocean algorithm.
 
@@ -293,6 +299,10 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                      data (see class OCEAN)
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003
+
 
         Reads in two Albedo variables
               albedo - cox munk lut that parameterizes albedo with wind speed
@@ -306,7 +316,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         self.verbose = verbose
         self.laod    = laod
 
-        OCEAN.__init__(self,fname) # initialize superclass
+        OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
         # Get Auxiliary Data
         ABC.__init__(self,fname,Albedo,coxmunk_lut=coxmunk_lut)
@@ -330,7 +340,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                       (self.mRef1600 > 0.0)  &\
                       (self.mRef2100 > 0.0)  &\
                       (self.cloud <cloud_thresh) &\
-                      (self.cloud > 0)           &\
+                      (self.cloud >= 0)          &\
                       (self.GlintAngle != MISSING ) &\
                       (self.GlintAngle > glint_thresh) 
 
@@ -370,7 +380,9 @@ class ABC_Land (LAND,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -383,15 +395,18 @@ class ABC_Land (LAND,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax. 
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        LAND.__init__(self,fname)  # initialize superclass
+        LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)
 
         # Q/C: enforce QA=3 and albedo in (0,0.25), scattering angle<170
         # --------------------------------------------------------------
@@ -404,7 +419,7 @@ class ABC_Land (LAND,NN,SETUP,ABC):
                       (self.mTau660 > -0.01)      & \
                       (self.mTau2100> -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)            &\
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef440 > 0)          & \
@@ -447,7 +462,9 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -460,15 +477,18 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003        
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        DEEP.__init__(self,fname)  # initialize superclass
+        DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)
 
         # Q/C: enforce QA=3 and albedo in (0,0.25), scattering angle<170
         # --------------------------------------------------------------
@@ -481,7 +501,7 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
                       (self.mTau550 > -0.01)      & \
                       (self.mTau660 > -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)            &\
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef470 > 0)          & \
@@ -529,7 +549,9 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -542,16 +564,19 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003        
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        LAND.__init__(self,fname)  # initialize superclass
-        dbl = DEEP(fname)
+        LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
+        dbl = DEEP(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)
 
         # Q/C: enforce QA=3 and scattering angle<170
         # Combines deep blue and dark target
@@ -564,7 +589,7 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
                       (self.mTau550 > -0.01)      & \
                       (self.mTau660 > -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)            & \
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef440 > 0)          & \
@@ -659,7 +684,9 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -672,16 +699,19 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        LAND.__init__(self,fname)  # initialize superclass
-        dbl = DEEP(fname)
+        LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
+        dbl = DEEP(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)        
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)        
 
         # Q/C: enforce QA=3 and scattering angle<170
         # Combines deep blue and dark target
@@ -694,7 +724,7 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
                       (self.mTau550 > -0.01)      & \
                       (self.mTau660 > -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)            & \
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef440 > 0)          & \
@@ -778,7 +808,9 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -791,16 +823,19 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003        
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        LAND.__init__(self,fname)  # initialize superclass
-        dbl = DEEP(fname)
+        LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
+        dbl = DEEP(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)                
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)                
 
         # Q/C: enforce QA=3 and scattering angle<170
         # Combines deep blue and dark target
@@ -813,7 +848,7 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
                       (self.mTau550 > -0.01)      & \
                       (self.mTau660 > -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)            & \
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef440 > 0)          & \
@@ -901,7 +936,9 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
-                  aFilter=None):
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax='20160701'):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -914,16 +951,19 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
         laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+                     20160701 is the default that was used for NNR v003        
         """
 
         self.verbose = verbose
         self.laod = laod
 
-        DEEP.__init__(self,fname)  # initialize superclass
-        lnd = LAND(fname)
+        DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
+        lnd = LAND(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo)           
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI)           
 
 
         # Q/C: enforce QA=3 and scattering angle<170
@@ -961,7 +1001,7 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
                       (self.mTau550 > -0.01)      & \
                       (self.mTau660 > -0.01)      & \
                       (self.cloud<cloud_thresh)   & \
-                      (self.cloud > 0)           & \
+                      (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef412 > 0)          & \
                       (self.mRef470 > 0)          & \
@@ -1026,19 +1066,19 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
 
 class STATS(object):
 
-  def __init__ (self,K,comblist):
+  def __init__ (self,K,comblist,nTarget):
     c = max([len(comblist),1])
     if K is None:
       k = 1
     else:
       k = K
 
-    self.slope     = np.ones([k,c])*-999.
-    self.intercept = np.ones([k,c])*-999.
-    self.R         = np.ones([k,c])*-999.
-    self.rmse      = np.ones([k,c])*-999.
-    self.mae       = np.ones([k,c])*-999.
-    self.me        = np.ones([k,c])*-999.
+    self.slope     = np.ones([k,c,nTarget])*np.nan
+    self.intercept = np.ones([k,c,nTarget])*np.nan
+    self.R         = np.ones([k,c,nTarget])*np.nan
+    self.rmse      = np.ones([k,c,nTarget])*np.nan
+    self.mae       = np.ones([k,c,nTarget])*np.nan
+    self.me        = np.ones([k,c,nTarget])*np.nan
 
 #---------------------------------------------------------------------
 def _train(mxd,expid,c):
@@ -1052,9 +1092,9 @@ def _train(mxd,expid,c):
   Input    = mxd.comblist[c]
   Target   = mxd.Target
   
-  print "-"*80
-  print "--> nHidden = ", nHidden
-  print "-->  Inputs = ", Input
+  print("-"*80)
+  print("--> nHidden = ", nHidden)
+  print("-->  Inputs = ", Input)
   
   n = cpu_count()
   kwargs = {'nproc' : n}
@@ -1092,13 +1132,13 @@ def _test(mxd,expid,c,plotting=True):
         if found: break
 
       if not found:
-        print '{} not found.  Need to train this combinatin of inputs'.format(netFile)
+        print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
         raise
     else:
       netFile = outdir+"/"+expid+'_Tau.net'
 
     mxd.net = mxd.loadnet(netFile)
-    mxd.Input = mxd.comblist[0]
+    mxd.Input = mxd.comblist[c]
     TestStats(mxd,mxd.K,c)
     if plotting: make_plots(mxd,expid,ident,I=mxd.iTest)
   else:
@@ -1117,13 +1157,13 @@ def _test(mxd,expid,c,plotting=True):
             netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
             mxd.loadnet(netFile)
             found = True
-            print 'found file',netFile
+            print('found file',netFile)
             break
           except:
             pass
 
         if not found:
-          print '{} not found.  Need to train this combinatin of inputs'.format(netFile)
+          print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
           raise
       else:
         netFile = outdir+"/"+expid+'.k={}_Tau.net'.format(str(k))
@@ -1252,4 +1292,4 @@ if __name__ == "__main__":
 
     if combinations:
       SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='slope')
-      SummaryPDFs(ocean,varnames=['mRef870','mRef660'])  
+      SummaryPDFs(ocean,varnames=['mRef870','mRef660'])

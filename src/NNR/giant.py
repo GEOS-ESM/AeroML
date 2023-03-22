@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/bin/env python3
 
 import os
 import sys
@@ -22,24 +22,21 @@ META =  ( "Date",
           "SensorZenith",
           "SensorAzimuth",
           "ScatteringAngle",
-          "GlintAngle",
-          "ndat")
+          "GlintAngle")
 
-ANET = ( # "mean_AOD0340",
-#         "mean_AOD0380",
-#         "mean_AOD0410",
-#         "mean_AOD0440",
+ANET = (  "mean_AOD0340",
+         "mean_AOD0380",
+         "mean_AOD0410",
+         "mean_AOD0440",
          "mean_AOD0470intrp",
-#         "mean_AOD0500",
-#         "mean_AOD0550",
-#         "mean_AOD0550img",
+         "mean_AOD0500",
          "mean_AOD0550intrp",
          "mean_AOD0660intrp",
-#         "mean_AOD0670",
+         "mean_AOD0670",
          "mean_AOD0870",
-#         "mean_AOD1020",
-#         "mean_AOD1640",
-         "mean_AOD2100intrp",
+         "mean_AOD1020",
+         "mean_AOD1640",
+#         "mean_AOD2100intrp",
          "mean_WaterVapor",         
          "nval_AOD0550intrp" 
          )
@@ -69,7 +66,7 @@ xLAND = ("mean_AOD0470corr-l",
         "mean_acfrac-l",   
         "mode_QA-l", 
         "cval_cldpixdistavg",
-        "nval_npu0550-l",
+#        "nval_npu0550-l",
         "nval_AOD0550corr-l" 
         )
 
@@ -115,10 +112,10 @@ xDEEP = ( "mean_AOD0412dpbl-l",
 #          "mean_AOD0550bestdpbl-l",
           "mean_AOD0550dpbl-l",
           "mean_AOD0660dpbl-l",
-          "mean_QAfilteredAOD0412dpbl-l",
-          "mean_QAfilteredAOD0470dpbl-l",
-          "mean_QAfilteredAOD0550dpbl-l",
-          "mean_QAfilteredAOD0660dpbl-l",
+#          "mean_QAfilteredAOD0412dpbl-l",
+#          "mean_QAfilteredAOD0470dpbl-l",
+#          "mean_QAfilteredAOD0550dpbl-l",
+#          "mean_QAfilteredAOD0660dpbl-l",
           "mean_cfracdpbl-l",
           "mean_mref0412dpbl-l",
           "mean_mref0470dpbl-l",
@@ -137,14 +134,16 @@ xDEEP = ( "mean_AOD0412dpbl-l",
           "mean_mref1200-l",
           "mean_mref1600-l",
           "mean_mref2100-l",  
-          "mean_dtdbAOD0550",     
+#          "mean_dtdbAOD0550",     
         )
 
 
 ALIAS = {
                 "Latitude"              : 'lat',
                 "Longitude"             : 'lon',
+                "mean_AOD0440"          : 'aTau440',
                 "mean_AOD0470intrp"     : 'aTau470',
+                "mean_AOD0500"          : 'aTau500',
                 "mean_AOD0550intrp"     : 'aTau550',
                 "mean_AOD0660intrp"     : 'aTau660',
                 "mean_AOD0870"          : 'aTau870',
@@ -264,35 +263,41 @@ class GIANT(object):
 
     # Read in variables
     # -----------------
-    print 'filename ',filename
+    print('filename ',filename)
     nc = Dataset(filename)
-    Alias = self.ALIAS.keys()
+    Alias = list(self.ALIAS.keys())
     self.giantList =[]
     for name in Names:
-      v = nc.variables[name]
-      rank = len(v.shape)
-      if rank == 1:
-          data = v[:]
-      elif rank==2:
-          data = v[:,:]
-      else:
-          raise ValueError, 'variable %s has invalid rank %d'%(name,rank)
+      data = nc.variables[name][:]
       if name in Alias:
           name = self.ALIAS[name]
 
-      self.__dict__[name] = data
+      # old files use -9999.0 for fill value
+      # new files use masked arrays
+      # convert everythong to regular array filling with -9999.0
+      # make sure _fill_value is -9999.0
+      self.__dict__[name] = np.array(data)
       self.giantList.append(name)
     nc.close()
 
     # Form python tyme
     # ----------------
-    D = self.Date[:,0:10]
-    T = self.Time[:,0:10]
-    # Bug in dataset, first field is blank
-    D[0] = D[1]
-    T[0] = T[1]
-    self.aTau550[0] = -9999.0
-    self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])
+    # new files have an ISO_DateTime variable
+    nc = Dataset(filename)
+    if 'ISO_DateTime' in list(nc.variables.keys()):
+        try:
+            iso = nc.variables['ISO_DateTime'][:]
+            self.tyme = array([isoparse(''.join(array(t))) for t in iso])
+        except:
+        # old file only have Date and Time variables
+            D = self.Date[:,0:10]
+            T = self.Time[:,0:5] # they didn't save the seconds
+            # Bug in dataset, first field is blank
+            D[0] = D[1]
+            T[0] = T[1]
+            self.aTau550[0] = -9999.0
+            self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
+    nc.close()
 
     # Limit to the MERRA-2 time series
     #---------------------------------
@@ -345,7 +350,7 @@ class GIANT(object):
     """
     for name in self.giantList:
       q = self.__dict__[name]
-      #print "{} Reducing "+name,q.shape
+      print("{} Reducing "+name,q.shape)
       self.__dict__[name] = q[I]
 
     self.nobs = len(self.lon)
@@ -376,17 +381,17 @@ class GIANT(object):
     self.CoxMunkLUT = albedo
 
 
-  def calcCoxMunk(self,channels=[470. ,550. ,660. ,870. ,1200.,1600.,2100.],windFile=None,npzFile=None):
+  def calcCoxMunk(self,windFile,channels=[470. ,550. ,660. ,870. ,1200.,1600.,2100.],npzFile=None):
     """
     Calls VLIDORT wrapper to calculate CoxMunk Bidirectional Surface Reflectance.
     """
     import VLIDORT_BRDF_ABC_
 
-    channeli = [470. ,550. ,660. ,870. ,1200.,1600.,2100.]
-    mr       = [1.336,1.333,1.331,1.328,1.324,1.317,1.306]  # refractive index
+    channeli = [200,250,300,337,400,488,515,550,633,694,860,1060,1300,1536,1800,2000,2250,2500]
+    # refractive index
+    mr       = [1.396,1.362,1.349,1.345,1.339,1.335,1.334,1.333,1.332,1.331,1.329,1.326,
+               1.323,1.318,1.312,1.306,1.292,1.261]
 
-    if windFile is None:
-      windFile = self.ident + '_MERRA2.npz'
     wind = np.load(windFile)
     u10m = wind['u10m'].astype('float64')
     v10m = wind['v10m'].astype('float64')
@@ -534,7 +539,7 @@ class GIANT(object):
           if fh.lm == 1:
             timeInterp = False    # no time interpolation in this case
           else:
-            raise ValueError, "cannot handle files with more tha 1 time, use ctl instead"
+            raise ValueError("cannot handle files with more tha 1 time, use ctl instead")
         else:
           fh = GFIOctl(inFile)  # open timeseries
           timeInterp = True     # perform time interpolation
@@ -552,12 +557,12 @@ class GIANT(object):
         else:
           tymes = array([t + timedelta(days=365*(clmYear-t.year)) for t in self.tyme])
 
-        print 'trange',tymes.min(),tymes.max()
+        print('trange',tymes.min(),tymes.max())
         # Loop over variables on file
         # ---------------------------
         for v in onlyVars:
             if Verbose:
-                print "<> Sampling ", v
+                print("<> Sampling ", v)
             if timeInterp:
               var = fh.sample(v,lons,lats,tymes,Verbose=Verbose)
             else:
@@ -568,7 +573,7 @@ class GIANT(object):
                 var = var.T # shape should be (nobs,nz)
                 self.sample.__dict__[v] = var
             else:
-                raise IndexError, 'variable <%s> has rank = %d'%(v,len(var.shape))
+                raise IndexError('variable <%s> has rank = %d'%(v,len(var.shape)))
 
         if npzFile is not None:
             savez(npzFile,**self.sample.__dict__)            
@@ -580,7 +585,7 @@ class GIANT(object):
         from grads.gahandle import GaHandle
         self.sample = GaHandle(npzFile)
         npz = load(npzFile)
-        for v in npz.keys():
+        for v in list(npz.keys()):
             self.sample.__dict__[v] = npz[v]
                 
 #---

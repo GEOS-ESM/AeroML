@@ -4,4 +4,4 @@
 
 # Which sub-directories to descend into
 # -------------------------------------
-  esma_add_subdirectory(GMAOpyobs)
+esma_add_subdirectory(GMAO_Shared)

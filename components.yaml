@@ -22,5 +22,5 @@ ecbuild:
 GMAOpyobs:
   local: ./src/Shared/GMAO_Shared/GMAO_pyobs@
   remote: ../GMAOpyobs.git
-  branch: develop
+  tag: v1.0.1
   develop: develop

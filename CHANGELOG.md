@@ -10,6 +10,8 @@
 
 ### Changed
 
+- import GMAOpyobs through components.yaml
+
 ### Added
    
 ### Changed 

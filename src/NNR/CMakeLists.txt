@@ -27,10 +27,10 @@ install (
 
 # Install 'abc' package
 # ---------------------
-file (GLOB abc_files abc/*.py)
+file (GLOB abc_files pyabc/*.py)
 install (
     FILES ${abc_files}
-    DESTINATION lib/Python/abc
+    DESTINATION lib/Python/pyabc
     )
 
 

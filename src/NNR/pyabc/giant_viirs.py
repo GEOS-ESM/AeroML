@@ -536,7 +536,7 @@ class GIANT(object):
                     fdu=self.fdu,fss=self.fss,fcc=self.fcc,fsu=self.fsu)     
 
   def sampleMCD43C(self,npzFile=None,Verbose=False):
-    from mcd43c import MCD43C
+    from pyabc.mcd43c import MCD43C
 
     brdf = MCD43C()
     brdf.sample(self,Verbose=Verbose)

@@ -4,7 +4,7 @@
 """
 
 import os,sys
-from abc import colocater
+from   pyabc import colocater
 from   pyobs.aeronet   import AERONET_L2, granules
 from   pyobs.vx04      import Vx04_L2, MISSING, BEST, CHANNELS, SDS
 from   glob            import glob

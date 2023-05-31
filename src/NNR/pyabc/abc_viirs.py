@@ -16,15 +16,15 @@ from   numpy                import  random, sort, pi, load, cos, log, std, exp
 from   numpy                import  reshape, arange, ones, zeros, interp, sqrt
 from   numpy                import  meshgrid, concatenate, squeeze
 import numpy                as      np
-from   giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN
-from   nn                   import  NN, _plotKDE
+from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN
+from   .nn                   import  NN, _plotKDE
 import itertools
 from   sklearn.linear_model import LinearRegression
 from   multiprocessing      import cpu_count
-from   abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   abc_c6_aux           import make_plots, make_plots_angstrom, TestStats, SummaryPDFs
-from   brdf                 import rtlsReflectance
-from   mcd43c               import BRDF
+from   .abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
+from   .abc_c6_aux           import make_plots, make_plots_angstrom, TestStats, SummaryPDFs
+from   .brdf                 import rtlsReflectance
+from   .mcd43c               import BRDF
 from functools import reduce
 
 # ------

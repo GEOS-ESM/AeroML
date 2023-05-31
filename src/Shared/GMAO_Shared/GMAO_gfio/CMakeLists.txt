@@ -61,7 +61,7 @@ if (precision STREQUAL "r4")
   endif ()
 endif ()
 
-#ecbuild_add_executable(TARGET GFIO_mean_${precision}.x SOURCES GFIO_mean.f90 LIBS GMAO_gfio_${precision} )
+ecbuild_add_executable(TARGET GFIO_mean_${precision}.x SOURCES GFIO_mean.f90 LIBS GMAO_gfio_${precision} )
 
 install(
    PROGRAMS gfio.py

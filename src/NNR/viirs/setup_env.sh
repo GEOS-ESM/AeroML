@@ -9,20 +9,16 @@
 
 # Add AeroApps to the path
 #----------------
-export AERODIR=/home/pcastell/workspace/AeroApps_viirs/AeroApps
-PATH=${AERODIR}/install/bin/:$PATH
-PATH=${AERODIR}/install/bin/ABC/:$PATH
-PATH=${AERODIR}/install/bin/GAAS_App/:$PATH
+export AERODIR=$HOME/workspace/AeroML_move_nnr/AeroML
+PATH=${AERODIR}/install/bin/NNR/:$PATH
+PATH=${AERODIR}/install/bin/NNR/viirs/:$PATH
 
 # Set Python PATH
 #-----------------
 export PYTHONPATH=${AERODIR}/install/lib
 export PYTHONPATH=${AERODIR}/install/lib/Python:$PYTHONPATH
-export PYTHONPATH=${AERODIR}/install/lib/Python/ABC:$PYTHONPATH
-export PYTHONPATH=${AERODIR}/install/lib/Python/pyods:$PYTHONPATH
-export PYTHONPATH=/home/pcastell/workspace/ABC:$PYTHONPATH
-export PYTHONPATH=${AERODIR}/install/bin/ABC:$PYTHONPATH
-export PYTHONPATH=${AERODIR}/install/bin/GAAS_App:$PYTHONPATH
+export PYTHONPATH=${AERODIR}/install/lib/Python/abc:$PYTHONPATH
+export PYTHONPATH=${AERODIR}/install/lib/Python/pyobs:$PYTHONPATH
 
 # source AeroApps modules
 source ${AERODIR}/env@/g5_modules.sh

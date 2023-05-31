@@ -12,6 +12,6 @@
 # SNPP
 #---------
 terraFile=/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc
-nohup python -u ./sample_mcd43c1.py ${terraFile}  >& nohup.mcd43c1.log &
+nohup python3 -u ./sample_mcd43c1.py ${terraFile}  >& nohup.mcd43c1.log &
 
 

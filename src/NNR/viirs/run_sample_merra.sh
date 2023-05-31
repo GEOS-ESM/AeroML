@@ -11,6 +11,6 @@
 # Terra
 #---------
 snppFile=/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc
-nohup python -u ./sample_merra.py ${snppFile}  >& nohup.snpp.merra011.log &
+nohup python3 -u ./sample_merra.py ${snppFile}  >& nohup.snpp.merra011.log &
 
 

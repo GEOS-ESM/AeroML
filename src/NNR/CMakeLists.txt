@@ -1,3 +1,7 @@
+# Which sub-directories to descend into
+# -------------------------------------
+esma_add_subdirectory(viirs)
+
 esma_set_this ()
 
 # @pcastell TO-DO. Leaving this out from the build for now
@@ -33,7 +37,7 @@ install (
 file (GLOB CTLFILES ctl/*)
 
 install (
-    FILES ${PYFILES} ${CTLFILES} 
+    FILES ${CTLFILES} 
     DESTINATION bin/${this}
     )
   

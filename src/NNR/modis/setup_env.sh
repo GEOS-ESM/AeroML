@@ -9,7 +9,7 @@
 
 # Add AeroApps to the path
 #----------------
-export AERODIR=${HOME}/workspace/AeroApps_nnr-updates/AeroApps
+export AERODIR=${HOME}/workspace/AeroML_move_nnr/AeroML
 PATH=${AERODIR}/install/bin/NNR/:$PATH
 PATH=${AERODIR}/install/bin/NNR/modis/:$PATH
 

@@ -9,9 +9,11 @@ set (PYSCRIPTS
     run_sample_cxalbedo.sh
     run_sample_mcd43c1.sh
     run_sample_merra.sh
+    run_sample_merra_tqv_to3.sh
     sample_cxalbedo.py
     sample_mcd43c1.py
     sample_merra.py
+    sample_merra_tqv_to3.py
     setup_env.sh
     )
 

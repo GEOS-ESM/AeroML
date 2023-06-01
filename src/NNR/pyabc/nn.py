@@ -6,7 +6,7 @@
 """
 
 import os
-import pyobs.sknet as nn
+import .sknet as nn
 
 from   matplotlib.pyplot import  cm, imshow, plot, figure
 from   matplotlib.pyplot import  xlabel, ylabel, title, grid, savefig, legend

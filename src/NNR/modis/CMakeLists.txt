@@ -6,7 +6,7 @@ set (PYSCRIPTS
     create_giant.py
     create_giant_coll.py
     run_create_giant.sh
-    run_sampled_cxalbedo.sh
+    run_sample_cxalbedo.sh
     run_sample_mcd43c1.sh
     run_sample_merra.sh
     sample_cxalbedo.py

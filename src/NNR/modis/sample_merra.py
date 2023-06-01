@@ -4,7 +4,7 @@
 """
 
 import os, sys
-from giant import GIANT
+from pyabc.giant import GIANT
 import argparse
 
 

@@ -188,6 +188,7 @@ class ABC(object):
         # Get Auxiliary Data
         self.fnameRoot = fname[:-3]
         self.setWind()
+        self.setTQV_TO3()
         self.setAlbedo(Albedo,coxmunk_lut=coxmunk_lut)
         self.setSpec()
         if NDVI:
@@ -199,6 +200,13 @@ class ABC(object):
         self.wind = load(self.fnameRoot + "_MERRA2.npz")['wind']
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
+
+    def setTQV_TO3(self):
+        # Read in MERRA-2 sampled TQV and TO3
+        # ------------------------------------
+        for name in ('tqv','to3'):
+            self.__dict__[name] = load(self.fnameRoot + "_MERRA2_TQV_TO3.npz")[name]
+            self.giantList.append(name)
 
     def setAlbedo(self,Albedo,coxmunk_lut=None):
         # Define wind speed dependent ocean albedo

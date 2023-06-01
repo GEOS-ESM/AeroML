@@ -4,8 +4,8 @@
 """
 
 import os, sys
-from   abc_c6               import ABC_Ocean, _trainMODIS, _testMODIS, flatten_list
-from   abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6               import ABC_Ocean, _trainMODIS, _testMODIS, flatten_list
+from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
 
 
 

@@ -4,8 +4,8 @@
 """
 
 import os, sys
-from   abc_c6               import ABC_Land, ABC_LAND_COMP, ABC_DBDT_INT, _trainMODIS, _testMODIS, flatten_list
-from   abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6               import ABC_Land, ABC_LAND_COMP, ABC_DBDT_INT, _trainMODIS, _testMODIS, flatten_list
+from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
 
 
 if __name__ == "__main__":

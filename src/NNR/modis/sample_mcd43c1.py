@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
    Sample MCD43C1 BRDF parameters  according to giant file
 """

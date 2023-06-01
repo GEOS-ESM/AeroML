@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
    Precalculate Cox-Munk albedo from sampled wind parameters according to giant file
    Requires MERRA-2 npz file to be present

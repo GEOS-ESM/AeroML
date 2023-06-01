@@ -1,6 +1,7 @@
 # Which sub-directories to descend into
 # -------------------------------------
 esma_add_subdirectory(viirs)
+esma_add_subdirectory(modis)
 
 esma_set_this ()
 

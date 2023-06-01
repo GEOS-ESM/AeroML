@@ -17,7 +17,7 @@ PATH=${AERODIR}/install/bin/NNR/viirs/:$PATH
 #-----------------
 export PYTHONPATH=${AERODIR}/install/lib
 export PYTHONPATH=${AERODIR}/install/lib/Python:$PYTHONPATH
-export PYTHONPATH=${AERODIR}/install/lib/Python/abc:$PYTHONPATH
+export PYTHONPATH=${AERODIR}/install/lib/Python/pyabc:$PYTHONPATH
 export PYTHONPATH=${AERODIR}/install/lib/Python/pyobs:$PYTHONPATH
 
 # source AeroApps modules

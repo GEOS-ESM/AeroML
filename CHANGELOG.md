@@ -4,7 +4,11 @@
 
 ### Added
 
+- ability to train on the AE linear fit to spectral AOD
+
 ### Fixed
+
+- updated GMAOpyobs to latest v1.0.4
 
 ### Changed
 

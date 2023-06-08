@@ -5,3 +5,4 @@
 # Which sub-directories to descend into
 # -------------------------------------
   esma_add_subdirectory(Shared)
+  esma_add_subdirectory(NNR)

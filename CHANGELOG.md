@@ -17,6 +17,8 @@
 
 ### Fixed
 
+- Updated contributing.md
+
 ### Changed
 
 - import GMAOpyobs through components.yaml

@@ -1,6 +1,6 @@
-# Contributing to AeroApps
+# Contributing to AeroML
 
-Contributing code to AeroApps should be done via a Pull Request to this repository.
+Contributing code to AeroML should be done via a Pull Request to this repository.
 
 ## Contributor License Agreement (CLA)
 

@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- updated GMAOpyobs to latest v1.0.4
+- updated GMAOpyobs to latest v1.0.5
 
 ### Changed
 

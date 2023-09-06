@@ -4,7 +4,8 @@
 
 ### Added
 
-- ability to train on the AE linear fit to spectral AOD
+- ability to train on the AE linear fit to spectral AOD on MODIS 
+- AE linear fit training also extended to VIIRS
 - use TQV and TO3 as inputs
 
 ### Fixed

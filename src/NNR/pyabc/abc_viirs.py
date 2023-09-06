@@ -22,7 +22,7 @@ import itertools
 from   sklearn.linear_model import LinearRegression
 from   multiprocessing      import cpu_count
 from   .abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   .abc_c6_aux           import make_plots, make_plots_angstrom, TestStats, SummaryPDFs
+from   .abc_c6_aux           import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
 from   .brdf                 import rtlsReflectance
 from   .mcd43c               import BRDF
 from functools import reduce
@@ -77,16 +77,20 @@ class SETUP(object):
 
     # figure out if you need to calculate angstrom exponent
     angstrom = False
+    angstrom_fit = False
     for tname in Target:
         if not angstrom:
-            if 'AE' in tname:
+            if ('AE' in tname) and ('AEfit' not in tname):
                 angstrom = True
+            if not angstrom_fit:
+                if 'AEfit' in tname:
+                    angstrom_fit = True
     self.angstrom = angstrom
+    self.angstrom_fit = angstrom_fit
 
     # if angstrom is being trained
     # find the base wavelength
-    # calculate angstrom with respect to the base wavelength
-    # -------------------------------------------------------
+    # -----------------------------------------------------
     if angstrom:
         # find base wavelength
         for i,tname in enumerate(Target):
@@ -100,6 +104,10 @@ class SETUP(object):
         self.AE_base_wav = base_wav
         self.AE_base_wav_i = base_wav_i
 
+    # if angstrom is being trained
+    # calculate angstrom with respect to the base wavelength
+    # -------------------------------------------------------
+    if angstrom:
         # Calculate the angstrom exponent
         # with respect to the base wavelength
         for tname in Target:
@@ -109,6 +117,25 @@ class SETUP(object):
                 tau  = self.__dict__['aTau'+wavs]
                 AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
                 self.__dict__['aAE'+wavs] = AE
+
+    # if angstrom_fit is being trained
+    # calculate a linear fit to the log-log
+    # of wavelength and AOD 440-870
+    # -------------------------------------------------------
+    if angstrom_fit:
+        wavs = ['440','470','500','550','660','870']
+        wav  = np.array(wavs).astype(float)
+
+        # Calculate the angstrom exponent
+        # with a linear fit to log AOD
+        tau = []
+        for w in wavs:
+            tau.append(self.__dict__['aTau'+w])
+
+        tau = np.array(tau)
+        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
+        self.__dict__['aAEfitm'] = fit[0,:]
+        self.__dict__['aAEfitb'] = fit[1,:]
 
     # Balance the dataset before splitting
     # No aerosol type should make up more that 35% 
@@ -734,6 +761,8 @@ def _test(mxd,expid,c,plotting=True):
     if plotting: 
         if mxd.angstrom:
             make_plots_angstrom(mxd,expid,ident,I=mxd.iTest)
+        elif mxd.angstrom_fit:
+            make_plots_angstrom_fit(mxd,expid,ident,I=mxd.iTest)            
         else:
             make_plots(mxd,expid,ident,I=mxd.iTest)
   else:
@@ -771,6 +800,8 @@ def _test(mxd,expid,c,plotting=True):
       if plotting: 
           if mxd.angstrom:
               make_plots_angstrom(mxd,expid,ident+'.k={}'.format(str(k)),I=mxd.iTest)
+          elif mxd.angstrom_ft:
+              make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)              
           else:
               make_plots(mxd,expid,ident+'.k={}'.format(str(k)),I=mxd.iTest)
       k = k + 1    

@@ -5,12 +5,13 @@
 ### Added
 
 - ability to train on the AE linear fit to spectral AOD
+- use TQV and TO3 as inputs
 
 ### Fixed
 
-- updated GMAOpyobs to latest v1.0.5
-
 ### Changed
+
+- updated GMAOpyobs to latest v1.0.5
 
 ## [v1.0.0] 2023-06-07
 

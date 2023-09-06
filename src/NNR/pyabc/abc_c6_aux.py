@@ -573,6 +573,132 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
                   savefig(outdir+"/"+expid+"."+ident+"_kde-AE"+name[4:]+'.png')
                   plt.close(fig)
 
+
+#---------------------------------------------------------------------
+
+def make_plots_angstrom_fit(mxd,expid,ident,I=None):
+  outdir = mxd.plotdir
+  if not os.path.exists(outdir):
+    os.makedirs(outdir)
+  if I is None:
+    I = ones(mxd.lon.shape).astype(bool)
+
+  # get the targets and  predictions
+  # ------------------------------------------------
+  targets  = mxd.getTargets(I)
+  results = mxd.eval(I)
+
+  # see if there are any AOD predictions
+  # plot KDE of corrected AOD
+  # --------------------------
+  for t in range(mxd.nTarget):
+      tname = mxd.Target[t]
+      if 'Tau' in tname:
+          fig = _plotKDE(targets[:,t],results[:,t],y_label='NNR')
+          title("Log(tau"+tname[4:]+"+0.01)- "+ident)
+          savefig(outdir+"/"+expid+"."+ident+"_kde-Tau"+tname[4:]+'-corrected.png')
+          plt.close(fig)          
+
+
+  # Plot KDE of predicted AE fit coefficients
+  for t in range(mxd.nTarget):
+      tname = mxd.Target[t]
+      if 'AEfit' in tname:
+          if 'AEfitm' in tname:
+              x_bins=np.arange(-1,3,0.1)
+          else:
+              x_bins=np.arange(-20,10,0.5)
+          fig = _plotKDE(targets[:,t],results[:,t],y_label='NNR',x_bins=x_bins)
+          title("Log-Log AOD Linear Fit Coefficient "+tname[-1]+" "+ident)
+          savefig(outdir+"/"+expid+"."+ident+"_kde-"+tname[1:]+'-corrected.png')
+          plt.close(fig)
+      if 'AEfitm' in tname:
+          AEmt = targets[:,t]
+          AEmr = results[:,t]
+      elif 'AEfitb' in tname:
+          AEbt = targets[:,t]
+          AEbr = results[:,t]
+
+  # get the AOD from the predicted angstrom 
+  # linear fit 
+  # ------------------------------------------------  
+  nwav = 6
+  wavs = ['440','470','500','550','660','870']
+  wav  = np.array(wavs).astype(float)
+
+  nobs, nt = targets.shape
+  targets_ = np.zeros([nobs,nwav])
+  results_ = np.zeros([nobs,nwav])
+  for i in range(nwav):
+      tau = mxd.__dict__['aTau'+wavs[i]]
+      targets_[:,i] = np.log(tau + 0.01)
+
+      results_[:,i] = -1.*(AEmr*np.log(wav[i]) + AEbr)
+
+  # Plot KDE of corrected AOD from AEfit
+  # ------------------------------------
+  # loop through targets
+  for t in range(nwav):
+      fig = _plotKDE(targets_[:,t],results_[:,t],y_label='NNR')
+      title("Log(tau"+wavs[t]+"+0.01)- "+ident)
+      savefig(outdir+"/"+expid+"."+ident+"_kde-Tau"+wavs[t]+'-fitcorrected.png')
+      plt.close(fig)
+
+
+  # Plot KDE of uncorrected AOD
+  # ---------------------------
+  # loop through targets
+  # plot if there's a corresponding MODIS retrieval
+  wavm = []
+  for t in range(nwav):
+      name = 'mTau'+wavs[t]
+      if name in mxd.__dict__:
+          wavm.append(t)
+          original = log(mxd.__dict__[name][I]+0.01)
+
+          # protect against some of the othe wavelengths having negative values
+          ii = mxd.__dict__[name][I] > -0.01
+
+          fig = _plotKDE(targets_[:,t][ii],original[ii],y_label='Original MODIS')
+          title("Log(tau"+wavs[t]+"+0.01)- "+ident)
+          savefig(outdir+"/"+expid+"."+ident+"_kde-"+name[1:]+'.png')
+          plt.close(fig)
+
+          if name == 'mTau550':
+              if 'aTau550' in mxd.Target:
+                  for t in range(mxd.nTarget):
+                      tname = mxd.Target[t]
+                      if tname == 'aTau550':
+                          # Scatter diagram for testing
+                          # ---------------------------
+                          mxd.plotScat(iTarget=t,I=I,figfile=outdir+"/"+expid+"."+ident+"_scat-"+name+'.png')
+
+  # Get AE of MODIS
+  #-----------------
+  mdata = []
+  fwav  = []
+  for t in wavm:
+      name = 'mTau'+wavs[t]
+      fwav.append(wav[t])
+      mdata.append(mxd.__dict__[name][I])
+
+  mdata = np.array(mdata)
+  fwav  = np.array(fwav)
+  fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
+  AEm = fit[0,:]
+  AEb = fit[1,:]
+
+  fig = _plotKDE(AEmt,AEm,y_label='Original Modis',x_bins=np.arange(-1,3,0.1))
+  title("AE 440-870 " +ident)
+  savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitm.png")
+  plt.close(fig)
+
+  fig = _plotKDE(AEbt,AEb,y_label='Original Modis',x_bins=np.arange(-20,10,0.5))
+  title("AE intercept 440-870 " +ident)
+  savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitb.png")
+  plt.close(fig)
+
+
 #---------------------------------------------------------------------
 def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=None,
                     emin=-1.5,emax=2.5):  

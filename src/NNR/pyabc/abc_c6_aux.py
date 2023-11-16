@@ -615,10 +615,20 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None):
       if 'AEfitm' in tname:
           AEmt = targets[:,t]
           AEmr = results[:,t]
-      elif 'AEfitb' in tname:
+      if 'AEfitb' in tname:
           AEbt = targets[:,t]
           AEbr = results[:,t]
+      else:
+          AEbt = None
+          AEbr = None
+      if 'aTau550' in tname:
+          tau550t = targets[:,t]
+          tau550r = results[:,t]
 
+  # calculate AEb
+  if AEbr == None:
+      AEbr = -1.*(tau550r + AEmr*np.log(550.))
+      
   # get the AOD from the predicted angstrom 
   # linear fit 
   # ------------------------------------------------  
@@ -693,10 +703,11 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None):
   savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitm.png")
   plt.close(fig)
 
-  fig = _plotKDE(AEbt,AEb,y_label='Original Modis',x_bins=np.arange(-20,10,0.5))
-  title("AE intercept 440-870 " +ident)
-  savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitb.png")
-  plt.close(fig)
+  if AEbt is not None:
+      fig = _plotKDE(AEbt,AEb,y_label='Original Modis',x_bins=np.arange(-20,10,0.5))
+      title("AE intercept 440-870 " +ident)
+      savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitb.png")
+      plt.close(fig)
 
 
 #---------------------------------------------------------------------

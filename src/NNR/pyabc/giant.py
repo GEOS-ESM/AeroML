@@ -308,6 +308,7 @@ class GIANT(object):
     if tymemax is not None:
       tymemax = isoparse(tymemax)
       I = self.tyme < tymemax
+      self.Ityme = I # save this for truncating auxiliary data too
       
       for name in Names:
         if name in Alias:

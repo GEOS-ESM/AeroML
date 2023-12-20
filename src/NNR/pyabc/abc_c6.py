@@ -228,6 +228,8 @@ class ABC(object):
         self.wind = load(self.fnameRoot + "_MERRA2.npz")['wind']
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
+        if self.tymemax is not None:
+            self.wind = self.wind[self.Ityme]
 
     def setTQV_TO3(self):
         # Read in MERRA-2 sampled TQV and TO3
@@ -235,6 +237,8 @@ class ABC(object):
         for name in ('tqv','to3'):
             self.__dict__[name] = load(self.fnameRoot + "_MERRA2_TQV_TO3.npz")[name]*0.01
             self.giantList.append(name)
+            if self.tymemax is not None:
+                self.__dict__[name] = self.__dict__[name][self.Ityme]
 
     def setAlbedo(self,Albedo,coxmunk_lut=None):
         # Define wind speed dependent ocean albedo
@@ -259,6 +263,8 @@ class ABC(object):
         for name in names:
             self.__dict__[name] = load(self.fnameRoot + "_MERRA2.npz")[name]
             self.giantList.append(name)
+            if self.tymemax is not None:
+                self.__dict__[name] = self.__dict__[name][self.Ityme]
 
     def setCoxMunkBRF(self,albedo):
         # Read in Cox Munk Bidirectional surface reflectance
@@ -379,6 +385,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.tymemax = tymemax
 
         OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
@@ -466,6 +473,7 @@ class ABC_Land (LAND,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.tymemax = tymemax
 
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -548,6 +556,8 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.tymemax = tymemax
+
 
         DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 

@@ -149,8 +149,7 @@ class NN(object):
         Splits input dataset into K training and testing subsets.
         Only data with an iValid Q/C flag is considered.
         """
-        n = self.lon.size
-        self.kf = KFold(n_splits=K, shuffle=True, random_state=n)
+        self.kf = KFold(n_splits=K, shuffle=True, random_state=self.nobs)
 
 
     def getInputs(self,I,Input=None):

@@ -1327,7 +1327,7 @@ def SummaryPDFs(mxdx,mxdx2=None,varnames=['mRef870','mSre470'],doInt=False):
       I = [Irange]
     else:
       I = []
-      for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
+      for iTrain, iTest in mxdx.kf.split(arange(mxdx.nValid)):
         I.append(iValid[iTest])
 
     I1, I2, I3, I4 = get_Iquartiles(mxdx,I=I)

@@ -157,6 +157,7 @@ class SETUP(object):
     # of the total number of obs
     # --------------------------------------
     self.iValid = self.balance(int(self.nobs*0.35))
+    self.nValid = np.sum(self.iValid)
 
     # Flatten Input_nnr into one list
     # -------------------------------
@@ -319,6 +320,7 @@ class ABC(object):
                 d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
                 if self.verbose>0:
                     print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size))
+        self.nValid = np.sum(self.iValid)
               
     def angleTranform(self):            
         # Angle transforms: for NN work we work with cosine of angles
@@ -346,6 +348,7 @@ class ABC(object):
             
           oiValid = reduce(lambda x,y: x&y,filters)
           self.iValid = self.iValid & oiValid
+          self.nValid = np.sum(self.iValid)
 
 #---------------------------------------------------------------------------- 
 class ABC_Ocean (OCEAN,NN,SETUP,ABC):
@@ -415,6 +418,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                       (self.GlintAngle != MISSING ) &\
                       (self.GlintAngle > glint_thresh) 
 
+        self.nValid = np.sum(self.iValid)
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
@@ -431,6 +435,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         # --------------------
         self.reduce(self.iValid)                    
         self.iValid = ones(self.lon.shape).astype(bool)
+        self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -506,6 +511,7 @@ class ABC_Land (LAND,NN,SETUP,ABC):
                       (self.mSre660 >  0.0)       & \
                       (self.mSre2100>  0.0)       
 
+        self.nValid = np.sum(self.iValid)
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
@@ -518,7 +524,8 @@ class ABC_Land (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.nValid = np.sum(self.iValid)
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -593,6 +600,7 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
 
         if useLAND:
           self.iValid = self.iValid & LANDref
+        self.nValid = np.sum(self.iValid)
 
         # Filter by additional variables
         # ------------------------------
@@ -605,7 +613,8 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -727,6 +736,7 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
 
         self.iValid = LANDiValid
         self.iValid[addiValid] = True
+        self.nValid = np.sum(self.iValid)
 
         # Filter by additional variables
         # ------------------------------
@@ -739,7 +749,8 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -849,6 +860,7 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
             self.__dict__[name][intiValid] = dbl.__dict__[name][intiValid]          
 
         self.iValid = intiValid
+        self.nValid = np.sum(self.iValid)
 
         self.dbmTau550 = dbl.mTau550
         self.giantList.append('dbmTau550')  
@@ -865,7 +877,7 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
         # --------------------
         self.reduce(self.iValid)                    
         self.iValid = ones(self.lon.shape).astype(bool)        
-
+        self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -977,6 +989,7 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
             self.giantList.append(name)  
 
         self.iValid = compiValid
+        self.nValid = np.sum(self.iValid)
 
 
         # Filter by additional variables
@@ -990,7 +1003,8 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -1118,6 +1132,7 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
 
 
         self.iValid = compiValid
+        self.nValid = np.sum(self.iValid)
 
         # Filter by additional variables
         # ------------------------------
@@ -1130,7 +1145,8 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.nValid = np.sum(iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -1177,7 +1193,7 @@ def _train(mxd,expid,c):
     mxd.savenet(outdir+"/"+expid+'_Tau.net')    
   else:
     k = 1
-    for iTrain, iTest in mxd.kf:
+    for iTrain, iTest in mxd.kf.split(np.arange(mxd.nValid)):
       I = arange(mxd.nobs)
       iValid = I[mxd.iValid]
       mxd.iTrain = iValid[iTrain]
@@ -1224,7 +1240,7 @@ def _test(mxd,expid,c,plotting=True):
             make_plots(mxd,expid,ident,I=mxd.iTest)
   else:
     k = 1
-    for iTrain, iTest in mxd.kf:
+    for iTrain, iTest in mxd.kf.split(np.arange(self.nValid)):
       I = arange(mxd.nobs)
       iValid = I[mxd.iValid]
       mxd.iTrain = iValid[iTrain]

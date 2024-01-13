@@ -6,3 +6,11 @@
 # -------------------------------------
   esma_add_subdirectory(Shared)
   esma_add_subdirectory(NNR)
+
+# Install 'abc' package
+# ---------------------
+file (GLOB abc_files pyabc/*.py)
+install (
+    FILES ${abc_files}
+    DESTINATION lib/Python/pyobs
+    )

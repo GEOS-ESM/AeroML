@@ -9,6 +9,8 @@
 
 ### Fixed
 
+- Minor fix associated with installation location of software.
+
 ### Changed
 
 - updated GMAOpyobs to latest v1.0.5

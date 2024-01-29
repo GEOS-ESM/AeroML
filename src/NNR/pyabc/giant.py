@@ -526,7 +526,7 @@ class GIANT(object):
 
     if aer_x is not None:
         labels = labels + ('fdu','fss','fcc','fsu')
-        if FinMode: 
+        if FineMode: 
             labels = labels + ('fduf','fssf')
 
     kwds = {}

@@ -21,12 +21,12 @@ from   .nn                   import  NN, _plotKDE
 import itertools
 from   sklearn.linear_model import LinearRegression
 from   multiprocessing      import cpu_count
-from   .abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   .abc_c6_aux           import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
-from   .brdf                 import rtlsReflectance
-from   .mcd43c               import BRDF
-from functools import reduce
-
+from   .abc_c6_aux          import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
+from   .abc_c6_aux          import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
+from   .brdf                import rtlsReflectance
+from   .mcd43c              import BRDF
+from functools              import reduce
+from glob                   import glob
 # ------
 MODVARNAMES = {'mRef470': 'MOD04 470 nm Reflectance',
                'mRef550': 'MOD04 550 nm Reflectance',
@@ -226,7 +226,15 @@ class ABC(object):
     def setWind(self):
         # Read in wind
         # ------------------------
-        self.wind = load(self.fnameRoot + "_MERRA2.npz")['wind']
+        Path = glob(self.fnameRoot + "_MERRA2*.npz")
+        first = True
+        for filename in Path:
+            data = load(filename)['wind']
+            if first:
+                self.wind = data
+            else:
+                self.wind = np.append(self.wind,wind)
+            first = False
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
         if self.tymemax is not None:
@@ -236,7 +244,16 @@ class ABC(object):
         # Read in MERRA-2 sampled TQV and TO3
         # ------------------------------------
         for name in ('tqv','to3'):
-            self.__dict__[name] = load(self.fnameRoot + "_MERRA2_TQV_TO3.npz")[name]*0.01
+            Path = glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"
+            first = True
+            for filename in Path:
+                data = load(filename)[name]*0.01
+                if first:
+                    self.__dict__[name] = data
+                else:
+                    self.__dict__[name] = np.append(self.__dict__[name],data)
+                first = False
+    
             self.giantList.append(name)
             if self.tymemax is not None:
                 self.__dict__[name] = self.__dict__[name][self.Ityme]

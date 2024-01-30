@@ -262,13 +262,15 @@ class GIANT(object):
   """
 
 
-  def __init__ (self,filename,xVars=(),only_good=True,tymemax=None):
+  def __init__ (self,Path,xVars=(),only_good=True,tymemin=None,tymemax=None):
     """
      Creates an GIANT object defining the attributes corresponding
      to the SDS of interest.
     """
+    if type(Path) is str:
+        Path = [Path]
 
-    if 'SNPP' in filename:     self.sat = 'SNPP'
+    if 'SNPP' in Path[0]:      self.sat = 'SNPP'
     else:                      self.sat = 'Unknown'    
 
     self.only_good = only_good
@@ -278,27 +280,37 @@ class GIANT(object):
     # ------------------------
     self.ALIAS = ALIAS.copy()
 
-    # Read in variables
-    # -----------------
-    print('filename ',filename)
-    nc = Dataset(filename)
     Alias = list(self.ALIAS.keys())
     self.giantList =[]
-    for name in Names:
-      data = nc.variables[name][:]
-      if name in Alias:
-          name = self.ALIAS[name]
+    # Read in variables
+    # -----------------
+    first = True
+    for filename in Path:
+        print('filename ',filename)
+        nc = Dataset(filename)
+        for name in Names:
+          data = nc.variables[name][:]
+          if name in Alias:
+              name = self.ALIAS[name]
 
-      # old files use -9999.0 for fill value
-      # new files use masked arrays
-      # convert everythong to regular array filling with -9999.0
-      # make sure _fill_value is -9999.0
-      if data.dtype == np.dtype('S1'):
-          self.__dict__[name] = np.array(data).astype(str)
-      else:      
-          self.__dict__[name] = np.array(data)
-      self.giantList.append(name)
-    nc.close()
+          # old files use -9999.0 for fill value
+          # new files use masked arrays
+          # convert everythong to regular array filling with -9999.0
+          # make sure _fill_value is -9999.0
+          if data.dtype == np.dtype('S1'):
+              if first:
+                  self.__dict__[name] = np.array(data).astype(str)
+              else:
+                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str))
+          else:      
+              if first:
+                  self.__dict__[name] = np.array(data)
+              else:
+                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data))
+          if first:
+              self.giantList.append(name)
+        nc.close()
+        first = False
 
     # Form python tyme
     # ----------------
@@ -319,11 +331,18 @@ class GIANT(object):
             self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
     nc.close()
 
-    # Limit to the MERRA-2 time series
+    # Limit time series
     #---------------------------------
-    if tymemax is not None:
-      tymemax = isoparse(tymemax)
-      I = self.tyme < tymemax
+    if (tymemin is not None) and (tymemax is not None):
+        tymemin = isoparse(tymemin)
+        tymemax = isoparse(tymemax)
+        I = (self.tyme <= tymemin) & (self.tyme < tymemax)
+    elif tymemin is not None:
+        tymemin = isoparse(tymemin)
+        I = self.tyme <= tymemin
+    elif tymemax is not None:
+        tymemax = isoparse(tymemax)
+        I = self.tyme < tymemax
       
       for name in Names:
         if name in Alias:

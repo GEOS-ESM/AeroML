@@ -13,8 +13,7 @@ from dateutil.parser import parse as isoparse
 
 from pyobs.npz       import NPZ
 
-META =  ( "Date",
-          "Time",
+META =  ( "ISO_DateTime"
           "Latitude",
           "Longitude",
           "SolarZenith",
@@ -315,21 +314,18 @@ class GIANT(object):
     # Form python tyme
     # ----------------
     # new files have an ISO_DateTime variable
-    nc = Dataset(filename)
-    if 'ISO_DateTime' in list(nc.variables.keys()):
-        try:
-            iso = nc.variables['ISO_DateTime'][:].astype(str)
+    first = True
+    for filename in Path:
+        nc = Dataset(filename)
+        iso = nc.variables['ISO_DateTime'][:].astype(str)
+        if first:
             self.tyme = array([isoparse(''.join(array(t))) for t in iso])
-        except:
-        # old file only have Date and Time variables
-            D = self.Date[:,0:10]
-            T = self.Time[:,0:5] # they didn't save the seconds
-            # Bug in dataset, first field is blank
-            D[0] = D[1]
-            T[0] = T[1]
-            self.aTau550[0] = -9999.0
-            self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
-    nc.close()
+        else:
+            self.tyme = np.append(self.tyme,array([isoparse(''.join(array(t))) for t in iso]))
+        nc.close()
+        first = False
+
+    self.giantList.append('tyme')
 
     # Limit time series
     #---------------------------------
@@ -356,11 +352,6 @@ class GIANT(object):
             self.__dict__[name] = self.__dict__[name][I]
 
         self.tyme = self.tyme[I]
-
-    del self.Date, self.Time
-    self.giantList.remove('Date')
-    self.giantList.remove('Time')
-    self.giantList.append('tyme')
 
     # Record number of observations
     # -----------------------------

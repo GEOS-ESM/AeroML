@@ -296,31 +296,44 @@ class GIANT(object):
                 else:
                     self.__dict__[name] = np.append(self__dict__[name],np.array(data))
 
-        nc.close()
+            if first:
+                self.giantList.append(name)
 
-        if first:
-            self.giantList.append(name)
+        nc.close()
         
         first = False
 
     # Form python tyme
     # ----------------
     # new files have an ISO_DateTime variable
-    nc = Dataset(filename)
+    first = True
+    nc = Dataset(Path[0])
     if 'ISO_DateTime' in list(nc.variables.keys()):
-        try:
-            iso = np.array(nc.variables['ISO_DateTime'][:]).astype(str)
-            self.tyme = array([isoparse(''.join(array(t))) for t in iso])
-        except:
-        # old file only have Date and Time variables
-            D = self.Date[:,0:10]
-            T = self.Time[:,0:5] # they didn't save the seconds
-            # Bug in dataset, first field is blank
-            D[0] = D[1]
-            T[0] = T[1]
-            self.aTau550[0] = -9999.0
-            self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
+       do_iso = True
+    else:
+       do_iso = False
     nc.close()
+
+    if do_iso:
+        for filename in Path:
+            nc = Dataset(filename)
+            if 'ISO_DateTime' in list(nc.variables.keys()):
+                iso = np.array(nc.variables['ISO_DateTime'][:]).astype(str)
+                if first:
+                    self.tyme = array([isoparse(''.join(array(t))) for t in iso])
+                else:
+                    self.tyme = np.append(self.tyme,array([isoparse(''.join(array(t))) for t in iso]))
+            nc.close()
+    else:
+        # old file only have Date and Time variables
+        D = self.Date[:,0:10]
+        T = self.Time[:,0:5] # they didn't save the seconds
+        # Bug in dataset, first field is blank
+        D[0] = D[1]
+        T[0] = T[1]
+        self.aTau550[0] = -9999.0
+        self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
+        
 
     # Limit to the MERRA-2 time series
     #---------------------------------

@@ -339,13 +339,14 @@ class GIANT(object):
         self.Ityme = I # save this for truncating auxiliary data too
     else:
         self.Ityme = None
-      
-      for name in Names:
-        if name in Alias:
-          name = self.ALIAS[name]
-        self.__dict__[name] = self.__dict__[name][I]
+    
+    if self.Ityme is not None:
+        for name in Names:
+            if name in Alias:
+                name = self.ALIAS[name]
+            self.__dict__[name] = self.__dict__[name][I]
 
-      self.tyme = self.tyme[I]
+        self.tyme = self.tyme[I]
 
     del self.Date, self.Time
     self.giantList.remove('Date')

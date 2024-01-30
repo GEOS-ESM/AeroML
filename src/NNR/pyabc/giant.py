@@ -325,12 +325,12 @@ class GIANT(object):
     # Limit to the MERRA-2 time series
     #---------------------------------
     if  (tymemin is not None) and (tymemax is not None):
-        tymemin = isparse(tymemin)
+        tymemin = isoparse(tymemin)
         tymemax = isoparse(tymemax)
         I = (self.tyme >= tymemin) & (self.tyme < tymemax)
         self.Ityme = I # save this for truncating auxiliary data too        
     elif tymemin is not None:
-        tymemin = isparse(tymemin)
+        tymemin = isoparse(tymemin)
         I = self.tyme >= tymemin
         self.Ityme = I # save this for truncating auxiliary data too
     elif tymemax is not None:

@@ -337,12 +337,17 @@ class GIANT(object):
         tymemin = isoparse(tymemin)
         tymemax = isoparse(tymemax)
         I = (self.tyme <= tymemin) & (self.tyme < tymemax)
+        self.Ityme = I # save this for truncating auxiliary data too
     elif tymemin is not None:
         tymemin = isoparse(tymemin)
         I = self.tyme <= tymemin
+        self.Ityme = I # save this for truncating auxiliary data too
     elif tymemax is not None:
         tymemax = isoparse(tymemax)
         I = self.tyme < tymemax
+        self.Ityme = I # save this for truncating auxiliary data too
+    else:
+        self.Ityme = None
       
       for name in Names:
         if name in Alias:

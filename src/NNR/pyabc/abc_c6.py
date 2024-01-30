@@ -226,7 +226,7 @@ class ABC(object):
     def setWind(self):
         # Read in wind
         # ------------------------
-        Path = glob(self.fnameRoot + "_MERRA2*.npz")
+        Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
         first = True
         for filename in Path:
             data = load(filename)['wind']
@@ -237,14 +237,14 @@ class ABC(object):
             first = False
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
-        if self.tymemax is not None:
+        if self.Ityme is not None:
             self.wind = self.wind[self.Ityme]
 
     def setTQV_TO3(self):
         # Read in MERRA-2 sampled TQV and TO3
         # ------------------------------------
         for name in ('tqv','to3'):
-            Path = glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"
+            Path = sorted(glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"))
             first = True
             for filename in Path:
                 data = load(filename)[name]*0.01
@@ -255,7 +255,7 @@ class ABC(object):
                 first = False
     
             self.giantList.append(name)
-            if self.tymemax is not None:
+            if self.Ityme is not None:
                 self.__dict__[name] = self.__dict__[name][self.Ityme]
 
     def setAlbedo(self,Albedo,coxmunk_lut=None):
@@ -279,9 +279,18 @@ class ABC(object):
         # --------------------------------------
         names = ('fdu','fss','fcc','fsu')
         for name in names:
-            self.__dict__[name] = load(self.fnameRoot + "_MERRA2.npz")[name]
+            Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
+            first = True
+            for filename in Path:
+                data = load(filename)[name]
+                if first:
+                    self.__dict__[name] = data
+                else:
+                    self.__dict__[name] = np.append(self.__dict__[name],data)
+                first = False
+
             self.giantList.append(name)
-            if self.tymemax is not None:
+            if self.Ityme is not None:
                 self.__dict__[name] = self.__dict__[name][self.Ityme]
 
     def setCoxMunkBRF(self,albedo):

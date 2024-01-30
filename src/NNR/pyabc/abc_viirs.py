@@ -21,11 +21,12 @@ from   .nn                   import  NN, _plotKDE
 import itertools
 from   sklearn.linear_model import LinearRegression
 from   multiprocessing      import cpu_count
-from   .abc_c6_aux           import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   .abc_c6_aux           import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
-from   .brdf                 import rtlsReflectance
-from   .mcd43c               import BRDF
-from functools import reduce
+from   .abc_c6_aux          import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
+from   .abc_c6_aux          import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
+from   .brdf                import rtlsReflectance
+from   .mcd43c              import BRDF
+from   functools            import reduce
+from   glob                 import glob
 
 # ------
 
@@ -211,9 +212,19 @@ class ABC(object):
     def setWind(self):
         # Read in wind
         # ------------------------
-        self.wind = load(self.fnameRoot + "_MERRA2.npz")['wind']
+        Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
+        first = True
+        for filename in Path:
+            data = load(filename)['wind']
+            if first:
+                self.wind = data
+            else:
+                self.wind = np.append(self.wind,data)
+            first = False
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
+        if self.Ityme is not None:
+            self.wind = self.wind[self.Ityme]        
 
     def setAlbedo(self,Albedo,coxmunk_lut=None):
         # Define wind speed dependent ocean albedo
@@ -236,8 +247,20 @@ class ABC(object):
         # --------------------------------------
         names = ('fdu','fss','fcc','fsu')
         for name in names:
-            self.__dict__[name] = load(self.fnameRoot + "_MERRA2.npz")[name]
+            Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
+            first = True
+            for filename in Path:
+                data = load(filename)[name]
+                if first:
+                    self.__dict__[name] = data
+                else:
+                    self.__dict__[name] = np.append(self.__dict__[name],data)
+                first = False
+
             self.giantList.append(name)
+            if self.Ityme is not None:
+                self.__dict__[name] = self.__dict__[name][self.Ityme]
+
 
     def setCoxMunkBRF(self,albedo):
         # Read in Cox Munk Bidirectional surface reflectance

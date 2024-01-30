@@ -286,7 +286,7 @@ class GIANT(object):
             # convert everythong to regular array filling with -9999.0
             # make sure _fill_value is -9999.0
             if data.dtype == np.dtype('S1'):
-                if fist:
+                if first:
                     self.__dict__[name] = np.array(data).astype(str)
                 else:
                     self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str))

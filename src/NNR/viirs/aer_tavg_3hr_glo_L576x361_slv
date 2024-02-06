@@ -1,0 +1,79 @@
+dset /css/gmao/geos-it/products/Y%y4/M%m2/D%d2/GEOS.it.asm.aer_tavg_3hr_glo_L576x361_slv.GEOS5294.%y4-%m2-%d2T%h2%n2.V01.nc4
+title GEOS-5.29.4 GEOS-IT
+undef 1e+15
+dtype netcdf
+options template
+xdef 576 linear -180 0.625
+ydef 361 linear -90 0.5
+zdef 1 linear 0 1
+tdef 87600 linear 01:30Z01JAN1998 3hr
+vars 68
+BCANGSTR=>bcangstr  0  t,y,x  Black Carbon Angstrom parameter [470-870 nm] __ENSEMBLE__
+BCCMASS=>bccmass  0  t,y,x  Black Carbon Column Mass Density __ENSEMBLE__
+BCEXTTAU=>bcexttau  0  t,y,x  Black Carbon Extinction AOT [550 nm] __ENSEMBLE__
+BCFLUXU=>bcfluxu  0  t,y,x  Black Carbon column u-wind mass flux __ENSEMBLE__
+BCFLUXV=>bcfluxv  0  t,y,x  Black Carbon column v-wind mass flux __ENSEMBLE__
+BCSCATAU=>bcscatau  0  t,y,x  Black Carbon Scattering AOT [550 nm] __ENSEMBLE__
+BCSMASS=>bcsmass  0  t,y,x  Black Carbon Surface Mass Concentration __ENSEMBLE__
+DMSCMASS=>dmscmass  0  t,y,x  DMS Column Mass Density __ENSEMBLE__
+DMSSMASS=>dmssmass  0  t,y,x  DMS Surface Mass Concentration __ENSEMBLE__
+DUANGSTR=>duangstr  0  t,y,x  Dust Angstrom parameter [470-870 nm] __ENSEMBLE__
+DUCMASS=>ducmass  0  t,y,x  Dust Column Mass Density __ENSEMBLE__
+DUCMASS25=>ducmass25  0  t,y,x  Dust Column Mass Density - PM 2.5 __ENSEMBLE__
+DUEXTT25=>duextt25  0  t,y,x  Dust Extinction AOT [550 nm] - PM 2.5 __ENSEMBLE__
+DUEXTTAU=>duexttau  0  t,y,x  Dust Extinction AOT [550 nm] __ENSEMBLE__
+DUFLUXU=>dufluxu  0  t,y,x  Dust column u-wind mass flux __ENSEMBLE__
+DUFLUXV=>dufluxv  0  t,y,x  Dust column v-wind mass flux __ENSEMBLE__
+DUSCAT25=>duscat25  0  t,y,x  Dust Scattering AOT [550 nm] - PM 2.5 __ENSEMBLE__
+DUSCATAU=>duscatau  0  t,y,x  Dust Scattering AOT [550 nm] __ENSEMBLE__
+DUSMASS=>dusmass  0  t,y,x  Dust Surface Mass Concentration __ENSEMBLE__
+DUSMASS25=>dusmass25  0  t,y,x  Dust Surface Mass Concentration - PM 2.5 __ENSEMBLE__
+HNO3CMASS=>hno3cmass  0  t,y,x  Nitric Acid Column Mass Density __ENSEMBLE__
+HNO3SMASS=>hno3smass  0  t,y,x  Nitric Acid Surface Mass Concentration __ENSEMBLE__
+NH3CMASS=>nh3cmass  0  t,y,x  Ammonia Column Mass Density __ENSEMBLE__
+NH3SMASS=>nh3smass  0  t,y,x  Ammonia Surface Mass Concentration __ENSEMBLE__
+NH4CMASS=>nh4cmass  0  t,y,x  Ammonium Column Mass Density __ENSEMBLE__
+NH4SMASS=>nh4smass  0  t,y,x  Ammonium Surface Mass Concentration __ENSEMBLE__
+NIANGSTR=>niangstr  0  t,y,x  Nitrate Angstrom parameter [470-870 nm] __ENSEMBLE__
+NICMASS=>nicmass  0  t,y,x  Nitrate Column Mass Density __ENSEMBLE__
+NICMASS25=>nicmass25  0  t,y,x  Nitrate Column Mass Density [PM2.5] __ENSEMBLE__
+NIEXTTAU=>niexttau  0  t,y,x  Nitrate Extinction AOT [550 nm] __ENSEMBLE__
+NIEXTTFM=>niexttfm  0  t,y,x  Nitrate Extinction AOT [550 nm] - PM 1.0 um __ENSEMBLE__
+NIFLUXU=>nifluxu  0  t,y,x  Nitrate column u-wind mass flux __ENSEMBLE__
+NIFLUXV=>nifluxv  0  t,y,x  Nitrate column v-wind mass flux __ENSEMBLE__
+NISCATAU=>niscatau  0  t,y,x  Nitrate Scattering AOT [550 nm] __ENSEMBLE__
+NISCATFM=>niscatfm  0  t,y,x  Nitrate Scattering AOT [550 nm] - PM 1.0 um __ENSEMBLE__
+NISMASS=>nismass  0  t,y,x  Nitrate Surface Mass Concentration __ENSEMBLE__
+NISMASS25=>nismass25  0  t,y,x  Nitrate Surface Mass Concentration [PM2.5] __ENSEMBLE__
+OCANGSTR=>ocangstr  0  t,y,x  Organic Carbon Angstrom parameter [470-870 nm] __ENSEMBLE__
+OCCMASS=>occmass  0  t,y,x  Organic Carbon Column Mass Density __ENSEMBLE__
+OCEXTTAU=>ocexttau  0  t,y,x  Organic Carbon Extinction AOT [550 nm] __ENSEMBLE__
+OCFLUXU=>ocfluxu  0  t,y,x  Organic Carbon column u-wind mass flux __ENSEMBLE__
+OCFLUXV=>ocfluxv  0  t,y,x  Organic Carbon column v-wind mass flux __ENSEMBLE__
+OCSCATAU=>ocscatau  0  t,y,x  Organic Carbon Scattering AOT [550 nm] __ENSEMBLE__
+OCSMASS=>ocsmass  0  t,y,x  Organic Carbon Surface Mass Concentration __ENSEMBLE__
+SO2CMASS=>so2cmass  0  t,y,x  SO2 Column Mass Density __ENSEMBLE__
+SO2SMASS=>so2smass  0  t,y,x  SO2 Surface Mass Concentration __ENSEMBLE__
+SO4CMASS=>so4cmass  0  t,y,x  SO4 Column Mass Density __ENSEMBLE__
+SO4SMASS=>so4smass  0  t,y,x  SO4 Surface Mass Concentration __ENSEMBLE__
+SSANGSTR=>ssangstr  0  t,y,x  Sea Salt Angstrom parameter [470-870 nm] __ENSEMBLE__
+SSCMASS=>sscmass  0  t,y,x  Sea Salt Column Mass Density __ENSEMBLE__
+SSCMASS25=>sscmass25  0  t,y,x  Sea Salt Column Mass Density - PM 2.5 __ENSEMBLE__
+SSEXTT25=>ssextt25  0  t,y,x  Sea Salt Extinction AOT [550 nm] - PM 2.5 __ENSEMBLE__
+SSEXTTAU=>ssexttau  0  t,y,x  Sea Salt Extinction AOT [550 nm] __ENSEMBLE__
+SSFLUXU=>ssfluxu  0  t,y,x  Sea Salt column u-wind mass flux __ENSEMBLE__
+SSFLUXV=>ssfluxv  0  t,y,x  Sea Salt column v-wind mass flux __ENSEMBLE__
+SSSCAT25=>ssscat25  0  t,y,x  Sea Salt Scattering AOT [550 nm] - PM 2.5 __ENSEMBLE__
+SSSCATAU=>ssscatau  0  t,y,x  Sea Salt Scattering AOT [550 nm] __ENSEMBLE__
+SSSMASS=>sssmass  0  t,y,x  Sea Salt Surface Mass Concentration __ENSEMBLE__
+SSSMASS25=>sssmass25  0  t,y,x  Sea Salt Surface Mass Concentration - PM 2.5 __ENSEMBLE__
+SUANGSTR=>suangstr  0  t,y,x  SO4 Angstrom parameter [470-870 nm] __ENSEMBLE__
+SUEXTTAU=>suexttau  0  t,y,x  SO4 Extinction AOT [550 nm] __ENSEMBLE__
+SUFLUXU=>sufluxu  0  t,y,x  SO4 column u-wind mass flux __ENSEMBLE__
+SUFLUXV=>sufluxv  0  t,y,x  SO4 column v-wind mass flux __ENSEMBLE__
+SUSCATAU=>suscatau  0  t,y,x  SO4 Scattering AOT [550 nm] __ENSEMBLE__
+TOTANGSTR=>totangstr  0  t,y,x  Total Aerosol Angstrom parameter [470-870 nm]
+TOTEXTTAU=>totexttau  0  t,y,x  Total Aerosol Extinction AOT [550 nm]
+TOTSCATAU=>totscatau  0  t,y,x  Total Aerosol Scattering AOT [550 nm]
+TAITIME=>taitime  0  t  TAITIME
+endvars

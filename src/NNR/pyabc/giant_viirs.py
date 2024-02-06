@@ -13,7 +13,7 @@ from dateutil.parser import parse as isoparse
 
 from pyobs.npz       import NPZ
 
-META =  ( "ISO_DateTime"
+META =  ( "ISO_DateTime",
           "Latitude",
           "Longitude",
           "SolarZenith",

@@ -30,7 +30,7 @@ setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${BASEDIR}/`uname -s`/lib
 # Link what we need for this project
 #------------------------------------
 setenv BIN ${AERODIR}/install/bin/NNR/viirs
-set files=(create_giant_coll.py create_giant.py giantHeader.txt sample_geosit.py sample_geosit_tqv_to3.py)
+set files=(create_giant.py giantHeader.txt sample_geosit.py sample_geosit_tqv_to3.py)
 foreach fname  ($files)
   if ( ! -l $fname )  then
     ln -s ${BIN}/$fname .
@@ -40,14 +40,14 @@ end
 # Copy what we need for this project
 # but don't overwrite if already setup
 # -------------------------------------
-set files=(run_create_giant.sh run_sample_cxalbedo.sh run_sample_mcd43c1.sh run_sample_geosit.sh run_sample_geosit_tqv_to3.sh )
+set files=(run_create_giant.sh run_sample_mcd43c1.sh run_sample_geosit.sh run_sample_geosit_tqv_to3.sh )
 foreach fname ($files)
   if ( ! -f $fname )  then
     cp ${BIN}/$fname .
   endif
 end
 
-set files=(train_deep.py train_land.py train_ocean.py)
+set files=(train_dbland.py train_dbocean.py)
 foreach fname  ($files)
   if ( ! -f $fname ) then
     cp ${BIN}/$fname .

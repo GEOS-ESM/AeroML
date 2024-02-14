@@ -300,7 +300,7 @@ class GIANT(object):
               if first:
                   self.__dict__[name] = np.array(data).astype(str)
               else:
-                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str))
+                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str),axis=0)
           else:      
               if first:
                   self.__dict__[name] = np.array(data)
@@ -632,7 +632,11 @@ class DT_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdtl'
-        self.ident = self.ident + '_'+ filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_'+ fname.split('/')[-1].split('.')[0]
         self.surface = 'land'
 
         # Angstrom interpolate retrieved AOD to
@@ -650,7 +654,11 @@ class DT_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'ocean'
 
         # Angstrom interpolate retrieved AOD to
@@ -670,7 +678,11 @@ class DB_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'ocean'
 
         # Angstrom interpolate retrieved AOD to
@@ -690,7 +702,11 @@ class DB_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbl'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'land'
 
         # Angstrom interpolate retrieved AOD to 

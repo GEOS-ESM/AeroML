@@ -6,11 +6,17 @@
 import os, sys
 from   pyabc.abc_viirs         import ABC_DB_Land, _trainMODIS, _testMODIS, flatten_list
 from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
-
+from   glob                    import glob
 
 if __name__ == "__main__":
   # giantFile
-  giantFile = '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc'
+  #giantFile = '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc'
+  giantFile = sorted(glob('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-3]*nc'))
+  giantFile += sorted(glob('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[5-9]*nc'))
+  giantFile += sorted(glob('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-2]*nc'))
+
+  aerFile = sorted(glob('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_*npz'))
+
   
   # tymemax sets a truncation date when reading in giant file
   # string with format YYYYMMDD
@@ -30,7 +36,8 @@ if __name__ == "__main__":
   # NN target variable names
 #  Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
 #  Target       = ['aTau550']
-  Target       = ['aAE440','aAE470','aTau550','aAE660','aAE870','aAE1020','aAE1640']
+#  Target       = ['aAE440','aAE470','aTau550','aAE660','aAE870','aAE1020','aAE1640']
+  Target       = ['aTau550','aAEfitm'] #,'aAEfitb']
 
   # surface albedo variable name
   # options are None, MCD43C1, MOD43BClimAlbedo  
@@ -38,7 +45,7 @@ if __name__ == "__main__":
 
   # number of K-folds or training
   # if None does not do K-folding, trains on entire dataset
-  K            = 3 
+  K            = None 
 
 
   # Flags to Train of Test the DEEP BLUE DATASET
@@ -46,7 +53,7 @@ if __name__ == "__main__":
   doTest       = True
 
   # experiment name
-  expid        = 'candidate_8outputsAE_002'
+  expid        = 'candidate_2outputsAEfitm_002'
 
   # Inputs that are always included
   # this can be None
@@ -77,10 +84,10 @@ if __name__ == "__main__":
   # Additional variables that the inputs are filtered by
   # standard filters are hardcoded in the abc_c6.py scripts
   aFilter      = ['aTau440','aTau470','aTau550','aTau660','aTau870','aTau1020','aTau1640'] +\
-                 ['mSre412','mSre488','mSre670'] +\
                  ['colO3'] +\
                  ['water'] +\
                  ['pixel_elevation']
+#                 ['mSre412','mSre488','mSre670'] +\
 #                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
 #                 ['algflag'] 
   # ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
@@ -91,7 +98,10 @@ if __name__ == "__main__":
   # -------------
 
   # get satellite name from giantFile name
-  sat = giantFile.split('_')[-3]
+  if type(giantFile) is str:
+      sat = giantFile.split('_')[-4]
+  else:
+      sat = giantFile[0].split('_')[-4]
 
   if sat == 'SNPP':
     retrieval    = 'VS_DB_LAND'
@@ -108,7 +118,7 @@ if __name__ == "__main__":
   # Train/Test on full dataset
   # -------------------------------------
   if doTrain or doTest:
-    deep = ABC_DB_Land(giantFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=0.7,
+    deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=0.7,
                        algflag=None)  
     # Initialize class for training/testing
     # ---------------------------------------------
@@ -130,7 +140,7 @@ if __name__ == "__main__":
 
   if doTest:
     _testMODIS(deep)
-    SummaryPDFs(deep,varnames=['mRef670','mSre488'])
+#    SummaryPDFs(deep,varnames=['mRef670','mSre488'])
 
     if combinations:
       SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')

@@ -475,18 +475,21 @@ class GIANT(object):
       savez(npzFile,**self.sample.__dict__)
 
 #---
-  def speciate(self,aer_x,FineMode=False,Verbose=False):
+  def speciate(self,aer_x,spcvars=('fdu','fss','fcc','fsu'),FineMode=False,Verbose=False):
     """
     Use GAAS to derive fractional composition.
     """
+    onlyVars = ('TOTEXTTAU',
+                'DUEXTTAU',
+                'SSEXTTAU',
+                'BCEXTTAU',
+                'OCEXTTAU',
+                'SUEXTTAU')
+    if 'fni' in spcvars:
+        onlyVars += ('NIEXTTAU',)
 
-    self.sampleFile(aer_x,onlyVars=('TOTEXTTAU',
-                                    'DUEXTTAU',
-                                    'SSEXTTAU',
-                                    'BCEXTTAU',
-                                    'OCEXTTAU',
-                                    'SUEXTTAU',
-                                    ),Verbose=Verbose)
+    self.sampleFile(aer_x,onlyVars=onlyVars,Verbose=Verbose)
+
     s = self.sample
     I = (s.TOTEXTTAU<=0)
     s.TOTEXTTAU[I] = 1.E30
@@ -496,6 +499,9 @@ class GIANT(object):
     self.foc  = s.OCEXTTAU / s.TOTEXTTAU
     self.fcc  = self.fbc + self.foc
     self.fsu  = s.SUEXTTAU / s.TOTEXTTAU
+
+    if 'fni' in spcvars:
+        self.fni = s.NIETTAU / s.TOTEXTTAU
 
     if FineMode:
       TOTEXTTAU = s.TOTEXTTAU[:]
@@ -565,6 +571,38 @@ class GIANT(object):
     if aer_x is not None:
         labels = labels + ('fdu','fss','fcc','fsu')
         if FineMode: 
+            labels = labels + ('fduf','fssf')
+
+    kwds = {}
+    for varname in labels:
+        kwds[varname] = self.__dict__[varname]
+
+    if npzFile is not None:
+      savez(npzFile,**kwds)
+
+  def sampleGEOSIT(self,slv_x='tavg1_2d_slv_Nx',aer_x='tavg1_2d_aer_Nx',
+                  FineMode=False,npzFile=None,Verbose=False,onlyVars=('U10M','V10M')):
+
+    if onlyVars is not None:
+        self.sampleFile(slv_x,onlyVars=onlyVars, Verbose=Verbose)
+
+    labels = ()
+    for varname in onlyVars:
+        self.__dict__[varname.lower()] = self.sample.__dict__[varname]
+        labels = labels + (varname.lower(),)
+
+    if 'U10M' in onlyVars:
+        self.wind = sqrt(self.sample.U10M[:]**2 + self.sample.V10M[:]**2)
+
+    del self.sample
+
+    spcvars = ('fdu','fss','fcc','fsu','fni')
+    if aer_x is not None:
+        self.speciate(aer_x,spcvars=spcvars,FineMode=FineMode,Verbose=Verbose)
+
+    if aer_x is not None:
+        labels = labels + spcvars
+        if FineMode:
             labels = labels + ('fduf','fssf')
 
     kwds = {}

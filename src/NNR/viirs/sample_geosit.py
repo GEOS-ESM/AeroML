@@ -22,6 +22,6 @@ if __name__ == '__main__':
     npzFile = outDir + '/' + fname[:-3] + '_GEOSIT_{}_{}.npz'.format(args.sdate.replace('-',''),args.edate.replace('-',''))
 
     g = GIANT(args.giantFile)
-    g.sampleMERRA(slv_x='slv_tavg_1hr_glo_L576x361_slv',aer_x='aer_tavg_3hr_glo_L576x361_slv',npzFile=npzFile,Verbose=True)
+    g.sampleGEOSIT(slv_x='slv_tavg_1hr_glo_L576x361_slv',aer_x='aer_tavg_3hr_glo_L576x361_slv',npzFile=npzFile,Verbose=True)
 
 

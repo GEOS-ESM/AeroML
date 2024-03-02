@@ -212,10 +212,16 @@ class ABC(object):
     Common Subroutines to all the ABC Classes
     """
 
-    def __init__(self,fname,Albedo,coxmunk_lut=None,NDVI=False):
+    def __init__(self,fname,Albedo,coxmunk_lut=None,NDVI=False,aerFile=None,slvFile=None):
 
         # Get Auxiliary Data
-        self.fnameRoot = fname[:-3]
+        if type(fname) is str:
+            self.fnameRoot = fname[:-3]
+        else:
+           self.fnameRoot = [fname[:-3]]
+
+        self.aerFile = aerFile
+        self.slvFile = slvFile
         self.setWind()
         self.setTQV_TO3()
         self.setAlbedo(Albedo,coxmunk_lut=coxmunk_lut)
@@ -226,14 +232,18 @@ class ABC(object):
     def setWind(self):
         # Read in wind
         # ------------------------
-        Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
+        if self.aerFile is None:
+            self.aerFile = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
         first = True
-        for filename in Path:
-            data = load(filename)['wind']
+        for filename in self.aerFile:
+            if 'wind' in load(filename).keys():
+                data = load(filename)['wind']
+            else:
+                data = np.sqrt(load(filename)['u10m']**2 + load(filename)['v10m']**2)
             if first:
                 self.wind = data
             else:
-                self.wind = np.append(self.wind,wind)
+                self.wind = np.append(self.wind,data)
             first = False
         self.giantList.append('wind')
         self.Wind = '' #need this for backwards compatibility
@@ -244,9 +254,10 @@ class ABC(object):
         # Read in MERRA-2 sampled TQV and TO3
         # ------------------------------------
         for name in ('tqv','to3'):
-            Path = sorted(glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"))
+            if self.slvFile is None:
+                self.slvFile = sorted(glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"))
             first = True
-            for filename in Path:
+            for filename in self.slvFile:
                 data = load(filename)[name]*0.01
                 if first:
                     self.__dict__[name] = data
@@ -277,16 +288,20 @@ class ABC(object):
     def setSpec(self):
         # Read in Aerosol Fractional Composition
         # --------------------------------------
-        names = ('fdu','fss','fcc','fsu')
+        names = ('fdu','fss','fcc','fsu','fni')
         for name in names:
-            Path = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
+            if self.aerFile is None:
+                self.aerFile = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
             first = True
-            for filename in Path:
-                data = load(filename)[name]
-                if first:
-                    self.__dict__[name] = data
-                else:
-                    self.__dict__[name] = np.append(self.__dict__[name],data)
+            for filename in self.aerFile:
+                try:
+                    data = load(filename)[name]
+                    if first:
+                        self.__dict__[name] = data
+                    else:
+                        self.__dict__[name] = np.append(self.__dict__[name],data)
+                except:
+                    print('+++++++ '+ name + 'not found in ' + filename)
                 first = False
 
             self.giantList.append(name)
@@ -388,7 +403,9 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                   glint_thresh=40.0,
                   Albedo=None,
                   aFilter=None,
-                  tymemax='20160701'):
+                  tymemax='20160701',
+                  aerFile=None,
+                  slvFile=None):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Ocean algorithm.
 
@@ -419,7 +436,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo,coxmunk_lut=coxmunk_lut)
+        ABC.__init__(self,fname,Albedo,coxmunk_lut=coxmunk_lut,aerFile=aerFile,slvFile=slvFile)
 
         # Q/C
         # ---
@@ -484,7 +501,9 @@ class ABC_Land (LAND,NN,SETUP,ABC):
                   cloud_thresh=0.70,
                   aFilter=None,
                   NDVI=False,
-                  tymemax='20160701'):
+                  tymemax='20160701',
+                  aerFile=None,
+                  slvFile=None):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -509,7 +528,7 @@ class ABC_Land (LAND,NN,SETUP,ABC):
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo,NDVI=NDVI)
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI,aerFile=aerFile,slvFile=slvFile)
 
         # Q/C: enforce QA=3 and albedo in (0,0.25), scattering angle<170
         # --------------------------------------------------------------
@@ -569,7 +588,9 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
                   cloud_thresh=0.70,
                   aFilter=None,
                   NDVI=False,
-                  tymemax='20160701'):
+                  tymemax='20160701',
+                  aerFile=None,
+                  slvFile=None):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -595,7 +616,7 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
         DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo,NDVI=NDVI)
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI,aerFile=aerFile,slvFile=slvFile)
 
         # Q/C: enforce QA=3 and albedo in (0,0.25), scattering angle<170
         # --------------------------------------------------------------
@@ -922,7 +943,9 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
                   cloud_thresh=0.70,
                   aFilter=None,
                   NDVI=False,
-                  tymemax='20160701'):
+                  tymemax='20160701',
+                  aerFile=None,
+                  slvFile=None):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -947,7 +970,7 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
         dbl = DEEP(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo,NDVI=NDVI)                
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI,aerFile=aerFile,slvFile=slvFile)                
 
         # Q/C: enforce QA=3 and scattering angle<170
         # Combines deep blue and dark target
@@ -1052,7 +1075,9 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
                   cloud_thresh=0.70,
                   aFilter=None,
                   NDVI=False,
-                  tymemax='20160701'):
+                  tymemax='20160701',
+                  aerFile=None,
+                  slvFile=None):
         """
         Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
 
@@ -1077,7 +1102,7 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
         lnd = LAND(fname,tymemax=tymemax)
 
         # Get Auxiliary Data
-        ABC.__init__(self,fname,Albedo,NDVI=NDVI)           
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI,aerFile=aerFile,slvFile=slvFile)           
 
 
         # Q/C: enforce QA=3 and scattering angle<170

@@ -255,17 +255,20 @@ class ABC(object):
     def setSpec(self):
         # Read in Aerosol Fractional Composition
         # --------------------------------------
-        names = ('fdu','fss','fcc','fsu')
+        names = ('fdu','fss','fcc','fsu','fni')
         for name in names:
             if self.aerFile is None:
                 self.aerFile = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
             first = True
             for filename in self.aerFile:
-                data = load(filename)[name]
-                if first:
-                    self.__dict__[name] = data
-                else:
-                    self.__dict__[name] = np.append(self.__dict__[name],data)
+                try:
+                    data = load(filename)[name]
+                    if first:
+                        self.__dict__[name] = data
+                    else:
+                        self.__dict__[name] = np.append(self.__dict__[name],data)
+                except:
+                    print('+++++++ '+name + ' not found in '+ filename)
                 first = False
 
             self.giantList.append(name)

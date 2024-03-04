@@ -298,13 +298,13 @@ class ABC(object):
                     data = load(filename)[name]
                     if first:
                         self.__dict__[name] = data
+                        self.giantList.append(name)
                     else:
                         self.__dict__[name] = np.append(self.__dict__[name],data)
                 except:
                     print('+++++++ '+ name + 'not found in ' + filename)
                 first = False
 
-            self.giantList.append(name)
             if self.Ityme is not None:
                 self.__dict__[name] = self.__dict__[name][self.Ityme]
 

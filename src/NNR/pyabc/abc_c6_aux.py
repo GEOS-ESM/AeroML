@@ -576,7 +576,7 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
 
 #---------------------------------------------------------------------
 
-def make_plots_angstrom_fit(mxd,expid,ident,I=None):
+def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   outdir = mxd.plotdir
   if not os.path.exists(outdir):
     os.makedirs(outdir)
@@ -709,7 +709,16 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None):
       savefig(outdir+"/"+expid+"."+ident+"_kde-AEfitb.png")
       plt.close(fig)
 
-
+  if k is None:
+      mxd.mAEfitm = np.ones(len(mxd.mTau550))*-999
+      mxd.mAEfitb = np.ones(len(mxd.mTau550))*-999
+      mxd.mAEfitm[I] = AEm
+      mxd.mAEfitb[I] = AEb
+  else:
+      mxd.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+      mxd.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+      mxd.__dict__['mAEfitm_{}'.format(k)][I]= AEm
+      mxd.__dict__['mAEfitb_{}'.format(k)][I]= AEb
 #---------------------------------------------------------------------
 def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=None,
                     emin=-1.5,emax=2.5):  
@@ -725,14 +734,9 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
   # loop through targets
   # plot if there's a corresponding MODIS retrieval 
   for t in range(mxd.nTarget):
-    tname = 'm'+mxd.Target[t][1:]
-    if 'Tau' not in tname:
-        wavs = tname.split('AE')[-1]
-        wav = float(wavs)
-        name = 'mTau'+wavs
-    else:
-        name = tname
-    if name in mxd.__dict__:
+    name = 'm'+mxd.Target[t][1:]
+    
+    if (name in mxd.__dict__) or ('AE' in name):
       if K is None:
         targets  = mxd.getTargets(I[0])
         if mxd.nTarget > 1: 
@@ -742,24 +746,30 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
         knet = mxd.loadnet(netfileRoot+'_Tau.net')
         results = knet(inputs)[:,t]
 
-        if 'Tau' not in tname:
-            base_tau_t = np.exp(mxd.getTargets(I[0])[:,mxd.AE_base_wav_i]) - 0.01
-            tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets)
-            targets = np.log(tau + 0.01)
+        if 'Tau' not in name:
+            if mxd.angstrom_fit:
+                original = mxd.__dict__[name][I[0]]
+            else:
+                base_tau_t = np.exp(mxd.getTargets(I[0])[:,mxd.AE_base_wav_i]) - 0.01
+                tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets)
+                targets = np.log(tau + 0.01)
 
-            base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
-            tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results)
-            results = np.log(tau + 0.01)
+                base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
+                tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results)
+                results = np.log(tau + 0.01)
 
-        original = mxd.__dict__[name][I[0]]
-        # Protect against -999 in interpolated values
-        ii = original > -0.01
-        original = original[ii]
-        targets = targets[ii]
-        results = results[ii]
+                original = mxd.__dict__[name][I[0]]
+        
+        else:
+            original = mxd.__dict__[name][I[0]]
+            # Protect against -999 in interpolated values
+            ii = original > -0.01
+            original = original[ii]
+            targets = targets[ii]
+            results = results[ii]
 
-        if mxd.laod:
-          original = log(original + 0.01)
+            if mxd.laod:
+              original = log(original + 0.01)
 
         mod04RMSE = rmse(original,targets)
         nnrRMSE   = rmse(results,targets)
@@ -788,15 +798,20 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
           results.append(out)
 
           if 'Tau' not in tname:
-              base_tau_t = np.exp(mxd.getTargets(mxd.iTest)[:,mxd.AE_base_wav_i]) - 0.01
-              tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets[k])
-              targets[k] = np.log(tau + 0.01)
+              if mxd.angstrom_fit:
+                  original.append(mxd.__dict__[name+'_{}'.format(k)[mxd.iTest]])
+              else:
+                  base_tau_t = np.exp(mxd.getTargets(mxd.iTest)[:,mxd.AE_base_wav_i]) - 0.01
+                  tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets[k])
+                  targets[k] = np.log(tau + 0.01)
 
-              base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
-              tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results[k])
-              results[k] = np.log(tau + 0.01)
-
-          original.append(mxd.__dict__[name][mxd.iTest])
+                  base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
+                  tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results[k])
+                  results[k] = np.log(tau + 0.01)
+          
+                  original.append(mxd.__dict__[name][mxd.iTest])
+          else:
+              original.append(mxd.__dict__[name][mxd.iTest])
 
           if mxd.laod:
             original[k] = log(original[k] + 0.01)

@@ -184,13 +184,7 @@ class VIIRS(Vx04_L2):
             prod = 'VN{}AER{}'.format(inst[-2:],Algo)
 
         Files = sorted(glob('{}/Level2/{}/{}/{}/{}/*nc'.format(l2_path,prod,coll,year,str(julday).zfill(3))))
-        if algo == 'DB_DEEP':
-            Vx04_L2.__init__(self,Files,"DB_LAND",
-                              only_good=only_good,
-                              SDS=SDS,
-                              Verb=verbose)   
-        else:
-            Vx04_L2.__init__(self,Files,algo,
+        Vx04_L2.__init__(self,Files,algo,
                               only_good=only_good,
                               SDS=SDS,
                               Verb=verbose)

@@ -449,6 +449,8 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
                       (self.mTau550 > -0.01) &\
                       (self.mTau660 > -0.01) &\
                       (self.mTau870 > -0.01) &\
+                      (self.mRef412 > 0.0)   &\
+                      (self.mRef440 > 0.0)   &\
                       (self.mRef470 > 0.0)   &\
                       (self.mRef550 > 0.0)   &\
                       (self.mRef660 > 0.0)   &\
@@ -1325,7 +1327,7 @@ def _test(mxd,expid,c,plotting=True):
           if mxd.angstrom:
               make_plots_angstrom(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
           elif mxd.angstrom_ft:
-              make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
+              make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest,k=k)
           else:
               make_plots(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
       k = k + 1    

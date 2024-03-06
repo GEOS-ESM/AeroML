@@ -16,7 +16,7 @@ from   numpy                import  random, sort, pi, load, cos, log, std, exp
 from   numpy                import  reshape, arange, ones, zeros, interp, sqrt
 from   numpy                import  meshgrid, concatenate, squeeze
 import numpy                as      np
-from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN
+from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN, DB_DEEP
 from   .nn                   import  NN, _plotKDE
 import itertools
 from   sklearn.linear_model import LinearRegression
@@ -628,7 +628,105 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
-        self.angleTranform()    
+        self.angleTranform()   
+
+#----------------------------------------------------------------------------
+
+class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
+
+    def __init__ (self, fname,
+                  Albedo=None,
+                  outliers=3.,
+                  laod=True,
+                  verbose=0,
+                  cloud_thresh=0.70,
+                  aFilter=None,
+                  NDVI=False,
+                  tymemax=None,
+                  algflag=None,
+                  aerFile=None,
+                  slvFile=None):
+        """
+        Initializes the AOD Bias Correction (ABC) for the MODIS Land algorithm.
+
+        On Input,
+
+        fname   ---  file name for the CSV file with the co-located MODIS/AERONET
+                     data (see class OCEAN)
+
+        Albedo  ---  albedo file name identifier; albedo file will be created
+                     from this identifier (See below).
+        outliers --  number of standard deviations for outlinear removal.
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        tymemax ---  truncate the data record in the giant file at tymemax.
+                     set to  None to read entire data record.
+        algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
+                     None - don't filter, use all pixels
+                     0 - hybrid (heterogenous surface)
+                     1 - vegetated surface
+                     2 - bright surface
+                     3 - mixed
+        """
+
+        self.verbose = verbose
+        self.laod = laod
+        self.algflag = algflag
+
+        DB_DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
+
+        # Get Auxiliary Data
+        ABC.__init__(self,fname,Albedo,NDVI=NDVI,aerFile=aerFile,slvFile=slvFile)
+
+        # Q/C: enforce QA=3, scattering angle<170
+        # --------------------------------------------------------------
+        self.iValid = (self.qa==3)                & \
+                      (self.aTau470 > -0.01)      & \
+                      (self.aTau550 > -0.01)      & \
+                      (self.aTau660 > -0.01)      & \
+                      (self.mTau412 > -0.01)      & \
+                      (self.mTau488 > -0.01)      & \
+                      (self.mTau550 > -0.01)      & \
+                      (self.mTau670 > -0.01)      & \
+                      (self.cloud<cloud_thresh)   & \
+                      (self.cloud >= 0)           & \
+                      (self.ScatteringAngle<170.) & \
+                      (self.mRef412 > 0)          & \
+                      (self.mRef488 > 0)          & \
+                      (self.mRef550 > 0)          & \
+                      (self.mRef670 > 0)          & \
+                      (self.mRef865 > 0)          & \
+                      (self.mRef1240 > 0)         & \
+                      (self.mRef1640 > 0)         & \
+                      (self.mRef2250 > 0)         & \
+                      (self.mSre488 >  0.0)       & \
+                      (self.mSre670 >  0.0)       & \
+                      (self.mSre412 >  0.0)
+
+        if algflag is not None:
+            fValid = np.zeros(self.iValid.shape).astype(bool)
+            for aflag in algflag:
+                fValid = fValid | (self.algflag == aflag)
+            self.iValid = self.iValid & fValid
+
+
+        # Filter by additional variables
+        # ------------------------------
+        self.addFilter(aFilter)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        self.outlierRemoval(outliers)
+
+        # Reduce the Dataset
+        # --------------------
+        self.reduce(self.iValid)
+        self.iValid = ones(self.lon.shape).astype(bool)
+
+
+        # Angle transforms: for NN work we work with cosine of angles
+        # -----------------------------------------------------------
+        self.angleTranform()
+
 #----------------------------------------------------------------------------    
 
 class ABC_DB_Land (DB_LAND,NN,SETUP,ABC):
@@ -698,8 +796,8 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC):
                       (self.mRef1640 > 0)         & \
                       (self.mRef2250 > 0)         & \
                       (self.mSre488 >  0.0)       & \
-                      (self.mSre670 >  0.0)       #& \
-#                      (self.mSre412 >  0.0)       
+                      (self.mSre670 >  0.0)       & \
+                      (self.mSre412 <  0.0)       
 
         if algflag is not None:
             fValid = np.zeros(self.iValid.shape).astype(bool)

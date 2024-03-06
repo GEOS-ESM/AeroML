@@ -289,12 +289,12 @@ class GIANT(object):
                 if first:
                     self.__dict__[name] = np.array(data).astype(str)
                 else:
-                    self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str))
+                    self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str),axis=0)
             else:
                 if first:
                     self.__dict__[name] = np.array(data)
                 else:
-                    self.__dict__[name] = np.append(self__dict__[name],np.array(data))
+                    self.__dict__[name] = np.append(self.__dict__[name],np.array(data))
 
             if first:
                 self.giantList.append(name)
@@ -324,6 +324,7 @@ class GIANT(object):
                 else:
                     self.tyme = np.append(self.tyme,array([isoparse(''.join(array(t))) for t in iso]))
             nc.close()
+            first = False
     else:
         # old file only have Date and Time variables
         D = self.Date[:,0:10]
@@ -694,8 +695,12 @@ class LAND(GIANT):
         if self.sat == 'Aqua':
             self.ident = 'mydl'
         elif self.sat == 'Terra':
-            self.ident = 'modl'            
-        self.ident = self.ident + '_'+ filename.split('/')[-1].split('.')[0]
+            self.ident = 'modl'           
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_'+ fname.split('/')[-1].split('.')[0]
         self.surface = 'land'
 
 class OCEAN(GIANT):
@@ -704,8 +709,12 @@ class OCEAN(GIANT):
         if self.sat == 'Aqua':
             self.ident = 'mydo'
         elif self.sat == 'Terra':
-            self.ident = 'modo'        
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+            self.ident = 'modo'       
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'ocean'
 
 
@@ -715,8 +724,12 @@ class DEEP(GIANT):
         if self.sat == 'Aqua':
             self.ident = 'mydl'
         elif self.sat == 'Terra':
-            self.ident = 'modl'            
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+            self.ident = 'modl'         
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'dbl'
 
 

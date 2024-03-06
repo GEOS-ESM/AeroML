@@ -357,6 +357,11 @@ class GIANT(object):
     # -----------------------------
     self.nobs = len(self.lon)
 
+    # scale pixel elveation
+    # ----------------------
+    if "pixel_elevation" in self.giantList:
+        self.pixel_elevation = self.pixel_elevation*1e-4
+
 #--
   def balance(self,N,frac=0.50):
     """
@@ -758,6 +763,29 @@ class DB_LAND(GIANT):
         self.mTau660 = aodInterpAngs(660.,self.mTau550,self.mTau670,550.,670.)
 
         self.giantList += ['mTau470','mTau660']
+
+class DB_DEEP(GIANT):
+    def __init__(self,filename,tymemax=None):
+        GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
+        if self.sat == 'SNPP':
+            self.ident = 'vsdbd'
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
+        self.surface = 'deep'
+
+        # Angstrom interpolate retrieved AOD to
+        # nominal MODIS wavelengths (412, 470, 550, 660)
+        # for ease of comparison
+        # VIIRS channels = 412, 488, 550, 670
+        # ------------------------------------------------
+        self.mTau470 = aodInterpAngs(470.,self.mTau412,self.mTau488,412.,488.)
+        self.mTau660 = aodInterpAngs(660.,self.mTau550,self.mTau670,550.,670.)
+
+        self.giantList += ['mTau470','mTau660']
+
 
 #---
 def aodInterpAngs(lambda_,tau1,tau2,lambda1,lambda2):

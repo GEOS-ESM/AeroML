@@ -4,6 +4,12 @@
 
 ### Added
 
+- abiltity to use GEOS-IT for training
+- split up giant files into multiple files
+- update GMAOpyobs to v1.0.8
+- fix some issues in testing plots from using AE fits for training
+- 2 pathways for for VIIRS land pixels training
+- add 412 and 440 ch to modis ocean NNR
 - ability to train on the AE linear fit to spectral AOD on MODIS 
 - AE linear fit training also extended to VIIRS
 - use TQV and TO3 as inputs

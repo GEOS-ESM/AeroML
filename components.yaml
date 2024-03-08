@@ -22,6 +22,5 @@ ecbuild:
 GMAOpyobs:
   local: ./src/Shared/GMAO_Shared/GMAO_pyobs@
   remote: ../GMAOpyobs.git
-#  tag: v1.0.7 **note to me need to test this
-  branch: feature/pcastell/debug_viirs_paths
+  tag: v1.0.8
   develop: develop

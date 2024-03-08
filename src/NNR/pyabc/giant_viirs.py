@@ -81,6 +81,7 @@ xDT_OCEAN = ( "mean_AOD0480ea-o",
 #          "mean_wspeed-o",
           "mean_acfrac-o",
           "mode_QAavg-o",
+          "mode_algflgdpbl-o",
 #          "cval_cldpixdistavg",
           "nval_AOD0550ea-o"
          )

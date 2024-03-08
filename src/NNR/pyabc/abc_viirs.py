@@ -495,8 +495,10 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
         ABC.__init__(self,fname,Albedo,coxmunk_lut=coxmunk_lut,aerFile=aerFile,slvFile=slvFile)
 
         # Q/C
+        # algflag filter keeps only non-turbid pixels
         # ---
         self.iValid = (self.qa>0) & \
+                      (self.algflag == 0) &\
                       (self.aTau470 > -0.01) &\
                       (self.aTau550 > -0.01) &\
                       (self.aTau660 > -0.01) &\

@@ -69,8 +69,12 @@ class SETUP(object):
                                 'cloud', 'albedo','fdu','fcc','fsu' ],
                  Input_const = None,
                  Target = ['aTau550',],
-                 K=None):
-       
+                 K=None,
+                 lInput_nnr = None):
+
+    """
+    lInput_nnr --- optional, give a list of the nnr input variables that you want to log transform
+    """
     
     self.retrieval = retrieval
     # Create outdir if it doesn't exist
@@ -204,6 +208,11 @@ class SETUP(object):
         self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
 
     self.combinations = combinations
+
+    # optional log transform input variables log
+    if lInput_nnr is not None:
+      for vname in lInput_nnr:
+        self.__dict__['l'+vname] = np.log(self.__dict__[vname])
 
 #----------------------------------------------------------------------------    
 class ABC(object):
@@ -1351,6 +1360,57 @@ def _testMODIS(mxdx):
     for c,Input in enumerate(mxdx.comblist):
       _test(mxdx,'.'.join(Input),c,plotting=False)
 
+      # because plotting is false, Get AE of MODIS
+      # it is other wise gotten within the plotting part
+      nwav = 6
+      wavs = ['440','470','500','550','660','870']
+      wav  = np.array(wavs).astype(float)
+      wavm = []
+      for t in range(nwav):
+          name = 'mTau'+wavs[t]
+          if name in mxdx.__dict__:
+              wavm.append(t)
+
+      if mxdx.K is None:
+          I = mxdx.iTest
+          mdata = []
+          fwav  = []
+          for t in wavm:
+              name = 'mTau'+wavs[t]
+              fwav.append(wav[t])
+              mdata.append(mxdx.__dict__[name][I])
+          mdata = np.array(mdata)
+          fwav  = np.array(fwav)
+          fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
+          AEm = fit[0,:]
+          AEb = fit[1,:]
+          mxdx.mAEfitm = np.ones(len(mxdx.mTau550))*-999
+          mxdx.mAEfitb = np.ones(len(mxdx.mTau550))*-999
+          mxdx.mAEfitm[I] = AEm
+          mxdx.mAEfitb[I] = AEb
+      else:
+          k = 1
+          for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
+              I = iTest
+
+              mdata = []
+              fwav  = []
+              for t in wavm:
+                  name = 'mTau'+wavs[t]
+                  fwav.append(wav[t])
+                  mdata.append(mxdx.__dict__[name][I])
+              mdata = np.array(mdata)
+              fwav  = np.array(fwav)
+              fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
+              AEm = fit[0,:]
+              AEb = fit[1,:]
+
+              mxdx.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+              mxdx.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+              mxdx.__dict__['mAEfitm_{}'.format(k)][I]= AEm
+              mxdx.__dict__['mAEfitb_{}'.format(k)][I]= AEb
+
+              k += 1        
 
 #---------------------------------------------------------------------
 def get_combinations(Input_nnr,Input_const):

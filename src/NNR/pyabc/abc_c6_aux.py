@@ -1288,7 +1288,7 @@ def TestStats(mxd,K,C):
         name = 'm'+mxd.Target[t][1:]
         if name in mxd.__dict__:
             original = mxd.__dict__[name][mxd.iTest]
-            if mxd.laod:
+            if ('Tau' in name) and mxd.laod:
                 original = log(original + 0.01)
 
             # get original MODIS stats 

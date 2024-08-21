@@ -384,6 +384,18 @@ class GIANT(object):
       K[P[0:m]] = True
       I[J] = K
 
+    # where none dominate
+    J = (self.fdu <= frac) & (self.fss <= frac) & (self.fcc <= frac) & (self.fsu <= frac)
+    J = J & ~I                      # only obs that haven't already been selected
+    n = len(self.lon[J])              # no. obs for this species
+    P = random.permutation(n)      # randomize obs for this species
+    m = min(n,N)                   # keep this many
+
+    K = I[J]
+    K[P[0:m]] = True
+    I[J] = K
+
+
     return I
 
 #---

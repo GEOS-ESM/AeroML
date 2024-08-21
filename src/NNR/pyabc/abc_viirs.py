@@ -172,7 +172,10 @@ class SETUP(object):
     # --------------------
     if K is None:
       self.iTest = ones([self.nobs]).astype(bool)
-      self.iTrain = self.iValid
+      self.iTrain = ones([self.nobs]).astype(bool)
+      if f_balance > 0:
+          self.iTest = ~self.iValid.copy()
+          self.iTrain = self.iValid.copy()
     else:
       self.kfold(K=K)
 

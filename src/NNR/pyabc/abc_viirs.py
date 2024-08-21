@@ -146,11 +146,11 @@ class SETUP(object):
     # Balance the dataset before splitting
     # No aerosol type should make up more that 35% 
     # of the total number of obs
-    # f_balance is the fraction that defines whether it's 'dominated'
+    # f_balance is the fraction that defines whether a species 'dominates'
     # --------------------------------------
     self.f_balance = f_balance
     if f_balance > 0:
-        self.iValid = self.balance(int(self.nobs*0.35),frac=f_balance)
+        self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
 
     # Flatten Input_nnr into one list
     # -------------------------------

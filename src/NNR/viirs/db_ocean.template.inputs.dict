@@ -1,8 +1,11 @@
 # inputs
 
 dict(
+# list of giant files
     giantFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*nc',
                   '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*nc'),
+
+# MERRRA-2 sampled input files
     aerFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*MERRA2*npz',
                 '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*MERRA2*npz'),
 

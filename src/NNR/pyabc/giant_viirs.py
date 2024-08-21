@@ -364,7 +364,7 @@ class GIANT(object):
         self.pixel_elevation = self.pixel_elevation*1e-4
 
 #--
-  def balance(self,N,frac=0.50):
+  def spc_balance(self,N,frac=0.50):
     """
     Return indices of observations so that each species does not have more than
     N observations. This is meant to be performed with a reduced dataset.

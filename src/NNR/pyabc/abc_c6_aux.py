@@ -640,7 +640,7 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   targets_ = np.zeros([nobs,nwav])
   results_ = np.zeros([nobs,nwav])
   for i in range(nwav):
-      tau = mxd.__dict__['aTau'+wavs[i]]
+      tau = mxd.__dict__['aTau'+wavs[i]][I]
       targets_[:,i] = np.log(tau + 0.01)
 
       results_[:,i] = -1.*(AEmr*np.log(wav[i]) + AEbr)

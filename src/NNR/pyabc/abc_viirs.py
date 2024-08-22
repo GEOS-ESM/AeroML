@@ -57,6 +57,8 @@ class SETUP(object):
                  Target = ['aTau550',],
                  K=None,
                  f_balance=0.50,
+                 q_balance=True,
+                 minN=500,
                  lInput_nnr = None):
 
     """
@@ -149,7 +151,11 @@ class SETUP(object):
     # f_balance is the fraction that defines whether a species 'dominates'
     # --------------------------------------
     self.f_balance = f_balance
-    if f_balance > 0:
+    self.q_balance = q_balance
+    if q_balance:
+        self.minN = minN
+        self.iValid = self.spc_target_balance(minN=minN,frac=f_balance)
+    elif f_balance > 0:
         self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
 
     # Flatten Input_nnr into one list
@@ -173,7 +179,7 @@ class SETUP(object):
     if K is None:
       self.iTest = ones([self.nobs]).astype(bool)
       self.iTrain = ones([self.nobs]).astype(bool)
-      if f_balance > 0:
+      if (f_balance > 0) or q_balance:
           self.iTest = ~self.iValid.copy()
           self.iTrain = self.iValid.copy()
     else:

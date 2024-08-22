@@ -363,7 +363,7 @@ class GIANT(object):
     if "pixel_elevation" in self.giantList:
         self.pixel_elevation = self.pixel_elevation*1e-4
 #--
-def spc_target_balance(self,minN=None,frac=0.50):
+  def spc_target_balance(self,minN=None,frac=0.50):
     """
     Retrun indices of observations following a species and target AOD balancing.
     We want to balance both according to species, and according to the value of the target AOD.
@@ -374,13 +374,13 @@ def spc_target_balance(self,minN=None,frac=0.50):
     frac = fraction that defines whether a species dominates
     """
     
-    random.seed(32768) # so that we get the same permutation
+    np.random.seed(32768) # so that we get the same permutation
 
     # first divide up the data by species
     nobs = len(self.lon)
-    I = zeros(nobs).astype(bool)    
+    I = np.zeros(nobs).astype(bool)    
     nspc = 5
-    Ispc = zeros([nobs,nspc]).astype(bool)
+    Ispc = np.zeros([nobs,nspc]).astype(bool)
     for ispc,f in enumerate([self.fdu,self.fss,self.fcc,self.fsu]):
 
       J = f>frac                      # all obs for which species dominate
@@ -400,7 +400,7 @@ def spc_target_balance(self,minN=None,frac=0.50):
     nbins = 6
     bine = np.linspace(tmin,tmax,nbins+1)
     Ibin = np.zeros([nobs,nspc,nbins]).astype(bool)
-    nbin = np.zeros([nspc,nbins])
+    nbin = np.zeros([nspc,nbins]).astype(int)
     for ispc in range(nspc):
         for ibin in range(nbins):
             bl = bine[ibin]
@@ -418,19 +418,19 @@ def spc_target_balance(self,minN=None,frac=0.50):
     # Balance the aTau distributions
     # We want the same number of obs in each bin
     Ibin_balance = np.zeros([len(self.lon),nspc,nbins]).astype(bool)
-    nbin_balance = np.zeros([nspc,nbins])
+    nbin_balance = np.zeros([nspc,nbins]).astype(int)
     for ispc in range(nspc):
         # find the minimum number of obs in a aTau bin
         if minN is None:
             n = nbin[ispc,nbin[ispc,:]>0].min()
         else:
-            n = minN
+            n = int(minN)
         # reduce all the other bins down to this number
         for ibin in range(nbins):
             if nbin[ispc,ibin] > n:
                 k = np.arange(nobs)[Ibin[:,ispc,ibin]]
                 # Get a random permutation of the obs in this bin
-                P = random.permutation(nbin[ispc,ibin])
+                P = np.random.permutation(nbin[ispc,ibin])
                 # Get the first n random samples
                 k = k[P[0:n]]
                 Ibin_balance[k,ispc,ibin] = True
@@ -443,23 +443,24 @@ def spc_target_balance(self,minN=None,frac=0.50):
     # Now balance across the species
     # reduce number of obs in the aTau bins evenly
     # to keep target balance
-    # not going to be exact here, but have them all the within 10%
+    # not going to be exact here, but have them all the within 25%
     # trying to keep as many obs as possible
     nbin_spc = nbin_balance.sum(axis=1)
     nspc_min = nbin_spc.min()
     nspc_frac = nbin_spc/nspc_min
+    close = 1.25
     for ispc in range(nspc):
-        if nspc_frac > 1.1:
+        if nspc_frac[ispc] > close:
             # spread reduction evenly among number of bins
-            nbalance = int(nspc_min*1.1/nbins)
+            nbalance = int(nspc_min*close/nbins)
             for ibin in range(nbins):
                 if nbin_balance[ispc,ibin] > nbalance:
                     k = np.arange(nobs)[Ibin_balance[:,ispc,ibin]]
                     ncut = nbin_balance[ispc,ibin]-nbalance
-                    P = random.permutation(ncut)
+                    P = np.random.permutation(ncut)
                     k = k[P[0:ncut]]
                     Ibin_balance[k,ispc,ibin] = False
-                    nbin_balance[ispci,ibin] = nbalance
+                    nbin_balance[ispc,ibin] = nbalance
             
 
 

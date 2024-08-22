@@ -8,7 +8,7 @@ from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS, 
 from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
 from   glob                       import glob
 import argparse
-
+import numpy as np
 
 if __name__ == "__main__":
 
@@ -96,6 +96,14 @@ if __name__ == "__main__":
     # fraction that defines whether a pixel is domniated by a species
     f_balance = inputs['f_balance']
 
+    # flag to do both species and target AOD balancing
+    q_balance = inputs['q_balance']
+
+    # minimum number of points to have in a size bin for balancing
+    # this is an adhoc parameter, but if it's too small, no obs will make
+    # it through balancing procedure
+    minN = inputs['minN']
+
     # --------------
     # End of Inputs
     # -------------
@@ -134,7 +142,9 @@ if __name__ == "__main__":
                       Target       = Target,                      
                       K            = K,
                       lInput_nnr   = lInput_nnr,
-                      f_balance    = f_balance)
+                      f_balance    = f_balance,
+                      q_balance    = q_balance,
+                      minN         = minN)
 
 
     # Do Training and Testing

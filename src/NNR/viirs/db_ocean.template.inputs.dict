@@ -73,8 +73,16 @@ dict(
                    ['water'],
 
 # fraction that defines whether a pixel is dominated by a species
-# if not set as an input
+# if not set as an input default is 0.5
 # if less than 0, will not do balancing
     f_balance = 0.5,
+
+# flag to do both species and target AOD balancing
+# default is True
+# minN is the minimum number of points in a size bin
+# if this is too small, very few obs will make it through
+# default is 500
+    q_balance = True,
+    minN = 500,
 )
 

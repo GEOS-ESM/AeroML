@@ -37,7 +37,7 @@ dict(
     doTest       = True,
 
 # experiment name
-    expid        = 'candidate_noturbid_nowato3_linputs_combi_downselect_2outputsAEfitm_002',
+    expid        = 'candidate_linputs_2outputsAEfitm_002',
 
 # NN target variable name
 #    Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'],

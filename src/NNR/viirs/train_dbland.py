@@ -104,7 +104,15 @@ if __name__ == "__main__":
     # cloud threshhold for filtering
     # default if not provided is 0.7
     cloud_thresh = inputs['cloud_thresh']
-    
+
+    # algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
+    #            None - don't filter, use all pixels
+    #            0 - hybrid (heterogenous surface)
+    #            1 - vegetated surface
+    #            2 - bright surface
+    #            3 - mixed
+    algflag = inputs['algflag']
+
     # --------------
     # End of Inputs
     # -------------
@@ -132,7 +140,7 @@ if __name__ == "__main__":
     if doTrain or doTest:
         deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
                 verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                algflag=None)  
+                algflag=algflag)  
 
         # Initialize class for training/testing
         # ---------------------------------------------
@@ -158,8 +166,8 @@ if __name__ == "__main__":
         _testMODIS(deep)
         SummaryPDFs(deep,varnames=['mRef670','mSre488'])
 
-      if combinations:
-          SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
+        if combinations:
+            SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
       
 
 

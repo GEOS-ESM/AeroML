@@ -88,6 +88,9 @@ if __name__ == "__main__":
     # standard filters are hardcoded in the abc_c6.py scripts
     aFilter      = inputs['aFilter'] 
 
+    # fraction that defines whether a pixel is domniated by a species
+    f_balance = inputs['f_balance']
+
     # flag to do both species and target AOD balancing
     q_balance = inputs['q_balance']
 

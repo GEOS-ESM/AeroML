@@ -108,6 +108,10 @@ dict(
     q_balance = True,
     minN = 500,
 
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
+    cloud_thresh = 0.7,
+
 # algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
 #              None - don't filter, use all pixels
 #              0 - hybrid (heterogenous surface)

@@ -106,5 +106,9 @@ dict(
 # default is 500
     q_balance = True,
     minN = 500,
+
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
+    cloud_thresh = 0.7,
 )
 

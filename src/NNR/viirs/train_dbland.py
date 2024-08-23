@@ -101,6 +101,10 @@ if __name__ == "__main__":
     # it through balancing procedure
     minN = inputs['minN']
 
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+    
     # --------------
     # End of Inputs
     # -------------
@@ -126,8 +130,10 @@ if __name__ == "__main__":
     # Train/Test on full dataset
     # -------------------------------------
     if doTrain or doTest:
-        deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=0.7,
-                       algflag=None)  
+        deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
+                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                algflag=None)  
+
         # Initialize class for training/testing
         # ---------------------------------------------
         deep.setupNN(retrieval, expid,

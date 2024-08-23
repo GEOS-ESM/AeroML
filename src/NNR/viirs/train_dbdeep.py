@@ -150,6 +150,7 @@ if __name__ == "__main__":
                         Input_nnr    = Input_nnr,                                         
                         Target       = Target,                      
                         K            = K,
+                        lInput_nnr   = lInput_nnr,
                         f_balance    = f_balance,
                         q_balance    = q_balance,
                         minN         = minN)

@@ -20,6 +20,7 @@ from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCE
 from   .nn                   import  NN, _plotKDE
 import itertools
 from   sklearn.linear_model import LinearRegression
+from   sklearn.preprocessing import StandardScaler
 from   multiprocessing      import cpu_count
 from   .abc_c6_aux          import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
 from   .abc_c6_aux          import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
@@ -27,7 +28,7 @@ from   .brdf                import rtlsReflectance
 from   .mcd43c              import BRDF
 from   functools            import reduce
 from   glob                 import glob
-
+from   .eval                import EVAL
 # ------
 
 VARNAMES    = {'cloud': 'MOD04 Cloud Fraction',
@@ -59,6 +60,8 @@ class SETUP(object):
                  f_balance=0.50,
                  q_balance=True,
                  minN=500,
+                 fignore=[],
+                 nbins = 6,
                  lInput_nnr = None):
 
     """
@@ -145,6 +148,14 @@ class SETUP(object):
         self.__dict__['aAEfitm'] = fit[0,:]
         self.__dict__['aAEfitb'] = fit[1,:]
 
+    # Fit the standard scalar of the targets
+    # ---------------------------------------
+    self.scaler = None
+    if self.scale:
+        targets = self.getTargets(self.iValid) 
+        self.scaler = StandardScaler()
+        self.scaler.fit(targets)
+
     # Balance the dataset before splitting
     # No aerosol type should make up more that 35% 
     # of the total number of obs
@@ -154,7 +165,8 @@ class SETUP(object):
     self.q_balance = q_balance
     if q_balance:
         self.minN = minN
-        self.iValid = self.spc_target_balance(minN=minN,frac=f_balance)
+        self.fignore = fignore
+        self.iValid = self.spc_target_balance(minN=minN,frac=f_balance,fignore=fignore,nbins=nbins)
     elif f_balance > 0:
         self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
 
@@ -211,7 +223,10 @@ class SETUP(object):
     # optional log transform input variables log
     if lInput_nnr is not None:
       for vname in lInput_nnr:
-        self.__dict__['l'+vname] = np.log(self.__dict__[vname]+1.0)
+          if 'Tau' in vname:
+            self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+          else:
+            self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
             
            
 
@@ -344,13 +359,13 @@ class ABC(object):
         # # Outlier removal based on log-transformed AOD
         # # --------------------------------------------
         if outliers > 0.:
-            d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
+            d = log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
             if self.verbose>0:
                 print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,std(d),d.size))
             for iter in range(3):
                 iValid = (abs(d)<outliers*std(d))
                 self.iValid[self.iValid] = iValid
-                d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
+                d = log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
                 if self.verbose>0:
                     print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size))
               
@@ -385,7 +400,8 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
     def __init__ (self,fname, 
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
                   outliers=3., 
-                  laod=True, 
+                  laod=True,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   glint_thresh=40.0,
@@ -402,7 +418,8 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
         fname   ---  file name for the CSV file with the co-located MODIS/AERONET
                      data (see class OCEAN)
         outliers --  number of standard deviations for outlinear removal.
-        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+logoffset)
+        logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
 
@@ -418,6 +435,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.logoffset = logoffset
 
         DT_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
@@ -479,6 +497,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
                   outliers=3.,
                   laod=True,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   glint_thresh=40.0,
@@ -495,7 +514,8 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
         fname   ---  file name for the CSV file with the co-located MODIS/AERONET
                      data (see class OCEAN)
         outliers --  number of standard deviations for outlinear removal.
-        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+logoffset)
+        logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
 
@@ -511,6 +531,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.logoffset = logoffset
 
         DB_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
@@ -579,6 +600,8 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
                   alb_max = 0.25,
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -597,13 +620,16 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
         Albedo  ---  albedo file name identifier; albedo file will be created
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
-        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+logoffset)
+        logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax. 
                      set to  None to read entire data record.
         """
 
         self.verbose = verbose
         self.laod = laod
+        self.logoffset = logoffset
+        self.scale = self.scale
 
         DT_LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -663,6 +689,7 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
                   Albedo=None,
                   outliers=3.,
                   laod=True,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -682,7 +709,8 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
         Albedo  ---  albedo file name identifier; albedo file will be created
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
-        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+logoffset)
+        logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
         algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
@@ -695,6 +723,7 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.logoffset = logoffset
         self.algflag = algflag
 
         DB_DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
@@ -754,12 +783,14 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------    
 
-class ABC_DB_Land (DB_LAND,NN,SETUP,ABC):
+class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   Albedo=None,
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -779,7 +810,8 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC):
         Albedo  ---  albedo file name identifier; albedo file will be created
                      from this identifier (See below).
         outliers --  number of standard deviations for outlinear removal.
-        laod    ---  if True, targets are log-transformed AOD, log(Tau+0.01)
+        laod    ---  if True, targets are log-transformed AOD, log(Tau+logoffset)
+        logoffset -- offset to protect against taking log of 0 or negative 
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
         algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
@@ -792,6 +824,8 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.scale = scale
+        self.logoffset = logoffset
         self.algflag = algflag
 
         DB_LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass

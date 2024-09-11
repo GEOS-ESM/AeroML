@@ -6,29 +6,20 @@
 """
 
 import os, sys
-from   matplotlib.pyplot    import  cm, imshow, plot, figure
-from   matplotlib.pyplot    import  xlabel, ylabel, title, grid, savefig, legend
-import matplotlib.pyplot    as      plt
-from   matplotlib.ticker    import  MultipleLocator
-import matplotlib.patches   as      mpatches
 from   numpy                import  c_ as cat
-from   numpy                import  random, sort, pi, load, cos, log, std, exp
-from   numpy                import  reshape, arange, ones, zeros, interp, sqrt
-from   numpy                import  meshgrid, concatenate, squeeze
 import numpy                as      np
 from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN, DB_DEEP
-from   .nn                   import  NN, _plotKDE
+from   .nn                   import  NN
 import itertools
 from   sklearn.linear_model import LinearRegression
 from   sklearn.preprocessing import StandardScaler
 from   multiprocessing      import cpu_count
-from   .abc_c6_aux          import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   .abc_c6_aux          import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
+from   .abc_c6_aux          import TestStats
 from   .brdf                import rtlsReflectance
 from   .mcd43c              import BRDF
 from   functools            import reduce
 from   glob                 import glob
-from   .eval                import EVAL
+from   .evaluation          import EVAL
 # ------
 
 VARNAMES    = {'cloud': 'MOD04 Cloud Fraction',
@@ -86,7 +77,10 @@ class SETUP(object):
     self.K       = K
     self.nHidden = nHidden
 
-    # figure out if you need to calculate angstrom exponent
+    # figure out if you need to calculate 
+    # the angstrom exponent at each wavelength
+    # of the angstrom fit for all wavelengths
+    # ---------------------------------------
     angstrom = False
     angstrom_fit = False
     for tname in Target:
@@ -101,52 +95,19 @@ class SETUP(object):
 
     # if angstrom is being trained
     # find the base wavelength
+    # calculate angstrom with respect to the base wavelength
     # -----------------------------------------------------
     if angstrom:
-        # find base wavelength
-        for i,tname in enumerate(Target):
-            if 'Tau' in tname:
-                base_name = tname
-                base_wavs = tname.split('Tau')[-1]
-                base_wav = float(base_wavs)
-                base_tau = self.__dict__[tname]
-                base_wav_i = i
-
-        self.AE_base_wav = base_wav
-        self.AE_base_wav_i = base_wav_i
-
-    # if angstrom is being trained
-    # calculate angstrom with respect to the base wavelength
-    # -------------------------------------------------------
-    if angstrom:
-        # Calculate the angstrom exponent
-        # with respect to the base wavelength
-        for tname in Target:
-            if 'Tau' not in tname:
-                wavs = tname.split('AE')[-1]
-                wav  = float(wavs)
-                tau  = self.__dict__['aTau'+wavs]
-                AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
-                self.__dict__['aAE'+wavs] = AE
+        self.get_aAE()
+        self.get_mAE()
 
     # if angstrom_fit is being trained
     # calculate a linear fit to the log-log
     # of wavelength and AOD 440-870
     # -------------------------------------------------------
     if angstrom_fit:
-        wavs = ['440','470','500','550','660','870']
-        wav  = np.array(wavs).astype(float)
-
-        # Calculate the angstrom exponent
-        # with a linear fit to log AOD
-        tau = []
-        for w in wavs:
-            tau.append(self.__dict__['aTau'+w])
-
-        tau = np.array(tau)
-        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
-        self.__dict__['aAEfitm'] = fit[0,:]
-        self.__dict__['aAEfitb'] = fit[1,:]
+        self.get_aAEfit()
+        self.get_mAEfit()
 
     # Fit the standard scalar of the targets
     # ---------------------------------------
@@ -177,9 +138,9 @@ class SETUP(object):
     # Create list of combinations
     # ---------------------------
     if combinations:
-      self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
+        self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
     else:
-      self.comblist = [input_nnr]
+        self.comblist = [input_nnr]
           
     # Initialize arrays to hold stats
     # ------------------------------
@@ -189,46 +150,135 @@ class SETUP(object):
     # Initialize K-folding
     # --------------------
     if K is None:
-      self.iTest = ones([self.nobs]).astype(bool)
-      self.iTrain = ones([self.nobs]).astype(bool)
-      if (f_balance > 0) or q_balance:
-          self.iTest = ~self.iValid.copy()
-          self.iTrain = self.iValid.copy()
+        self.iTest = np.ones([self.nobs]).astype(bool)
+        self.iTrain = np.ones([self.nobs]).astype(bool)
+        if (f_balance > 0) or q_balance:
+            self.iTest = ~self.iValid.copy()
+            self.iTrain = self.iValid.copy()
     else:
-      self.kfold(K=K)
+        self.kfold(K=K)
 
     # Create list of topologies
     # -------------------------  
     self.topology = []
     if not combinations:
-      if self.nHidden is None:
-        self.nHidden  = len(input_nnr)
-      else:
-        self.nHidden = nHidden
+        if self.nHidden is None:
+            self.nHidden  = len(input_nnr)
+        else:
+            self.nHidden = nHidden
 
-      self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
+        self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
 
     else:
-      for c,Input in enumerate(self.comblist):
-        if nHidden is None:
-          self.nHidden  = len(Input)
-        else:
-          self.nHidden = nHidden
+        for c,Input in enumerate(self.comblist):
+            if nHidden is None:
+              self.nHidden  = len(Input)
+            else:
+              self.nHidden = nHidden
 
-        self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
+            self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
 
     self.combinations = combinations
 
 
     # optional log transform input variables log
     if lInput_nnr is not None:
-      for vname in lInput_nnr:
-          if 'Tau' in vname:
-            self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
-          else:
-            self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+        for vname in lInput_nnr:
+            if 'Tau' in vname:
+                self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+            else:
+                self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
             
-           
+# ---
+    def get_aAE(self):
+        """ 
+        if angstrom is being trained
+        find the base wavelength
+        """
+        # find base wavelength
+        for i,tname in enumerate(self.Target):
+            if 'Tau' in tname:
+                base_name = tname
+                base_wavs = tname.split('Tau')[-1]
+                base_wav = float(base_wavs)
+                base_tau = self.__dict__[tname]
+                base_wav_i = i
+
+        self.AE_base_wav = base_wav
+        self.AE_base_wav_i = base_wav_i
+    
+        # Calculate the angstrom exponent
+        # with respect to the base wavelength
+        for tname in self.Target:
+            if 'Tau' not in tname:
+                wavs = tname.split('AE')[-1]
+                wav  = float(wavs)
+                tau  = self.__dict__['aTau'+wavs]
+                AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
+                self.__dict__['aAE'+wavs] = AE       
+# ---
+    def get_mAE(self):
+        """
+        get the AE from original retrieval
+        """
+        base_wav = self.AE_base_wav
+        base_wav_i = self.AE_base_wav_i 
+
+        # Calculate the angstrom exponent
+        # with respect to the base wavelength
+        for tname in self.Target:
+            if 'Tau' not in tname:
+                wavs = tname.split('AE')[-1]
+                wav  = float(wavs)
+                if 'mTau'+wavs in self.__dict__:
+                    tau  = self.__dict__['mTau'+wavs]
+                    AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
+                    self.__dict__['mAE'+wavs] = AE                
+# ---
+    def get_aAEfit(self):
+        """
+        calculate a linear fit to the log-log
+        of wavelength and AOD 440-870        
+        """
+
+        wavs = ['440','470','500','550','660','870']
+        wav  = np.array(wavs).astype(float)
+
+        # Calculate the angstrom exponent
+        # with a linear fit to log AOD
+        tau = []
+        for w in wavs:
+            tau.append(self.__dict__['aTau'+w])
+
+        tau = np.array(tau)
+        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
+        self.__dict__['aAEfitm'] = fit[0,:]
+        self.__dict__['aAEfitb'] = fit[1,:]      
+        self.wavs = wavs
+
+# ---
+    def get_mAEfit(self):
+        """
+        calculate a linear fit to the log-log
+        of wavelength and AOD 440-870 
+        for the original retrieval data
+        """
+        wavs = self.wavs
+
+        # Calculate the angstrom exponent
+        # with a linear fit to log AOD
+        tau = []
+        wav = []
+        for w in wavs:
+            if 'mTau'+w in self.__dict__:
+                tau.append(self.__dict__['mTau'+w])
+                wav.append(float(wavs))
+
+        tau = np.array(tau)
+        wav = np.array(wav)
+        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
+        self.__dict__['mAEfitm'] = fit[0,:]
+        self.__dict__['mAEfitb'] = fit[1,:]
 
 #----------------------------------------------------------------------------    
 class ABC(object):
@@ -260,10 +310,10 @@ class ABC(object):
             self.aerFile = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
         first = True
         for filename in self.aerFile:
-            if 'wind' in load(filename).keys():
-                data = load(filename)['wind']
+            if 'wind' in np.load(filename).keys():
+                data = np.load(filename)['wind']
             else:
-                data = np.sqrt(load(filename)['u10m']**2 + load(filename)['v10m']**2)
+                data = np.sqrt(np.load(filename)['u10m']**2 + np.load(filename)['v10m']**2)
             if first:
                 self.wind = data
             else:
@@ -287,7 +337,7 @@ class ABC(object):
             elif 'CxAlbedo' in albedo :
               self.setCoxMunkBRF(albedo)
             else:
-              self.__dict__[albedo] = squeeze(load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
+              self.__dict__[albedo] = np.squeeze(np.load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
               self.giantList.append(albedo)
 
     def setSpec(self):
@@ -300,7 +350,7 @@ class ABC(object):
             first = True
             for filename in self.aerFile:
                 try:
-                    data = load(filename)[name]
+                    data = np.load(filename)[name]
                     if first:
                         self.__dict__[name] = data
                         self.giantList.append(name)
@@ -320,7 +370,7 @@ class ABC(object):
         names = ['470','550','660','870','1200','1600','2100']
         for ch in names:
             name = 'CxAlbedo' + ch
-            self.__dict__[name] = squeeze(load(self.fnameRoot+'_CxAlbedo.npz')[name])
+            self.__dict__[name] = np.squeeze(np.load(self.fnameRoot+'_CxAlbedo.npz')[name])
             self.giantList.append(name)
 
     def setBRDF(self):
@@ -332,7 +382,7 @@ class ABC(object):
                  'BRDF650','BRDF850','BRDF1200','BRDF1600',
                  'BRDF2100')
         for name in brdf.__dict__:
-            brdf.__dict__[name] = load(self.fnameRoot + "_MCD43C1.npz")[name]
+            brdf.__dict__[name] = np.load(self.fnameRoot + "_MCD43C1.npz")[name]
 
         for name in names:
             ch = name[4:]
@@ -351,7 +401,7 @@ class ABC(object):
         # -------------
         names = ('NDVI','EVI','NIRref')
         for name in names:
-          self.__dict__[name] = load(self.fnameRoot + "_NDVI.npz")[name]
+          self.__dict__[name] = np.load(self.fnameRoot + "_NDVI.npz")[name]
           self.giantList.append(name)
 
     def outlierRemoval(self,outliers):
@@ -359,23 +409,23 @@ class ABC(object):
         # # Outlier removal based on log-transformed AOD
         # # --------------------------------------------
         if outliers > 0.:
-            d = log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
+            d = np.log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
             if self.verbose>0:
-                print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,std(d),d.size))
+                print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,np.std(d),d.size))
             for iter in range(3):
-                iValid = (abs(d)<outliers*std(d))
+                iValid = (abs(d)<outliers*np.std(d))
                 self.iValid[self.iValid] = iValid
-                d = log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
+                d = np.log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
                 if self.verbose>0:
-                    print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size))
+                    print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,np.std(d),d.size))
               
     def angleTranform(self):            
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
-        self.ScatteringAngle = cos(self.ScatteringAngle*pi/180.0) 
-        self.SensorZenith    = cos(self.SensorZenith*pi/180.0)    
-        self.SolarZenith     = cos(self.SolarZenith*pi/180.0)     
-        self.GlintAngle      = cos(self.GlintAngle*pi/180.0)      
+        self.ScatteringAngle = np.cos(self.ScatteringAngle*np.pi/180.0) 
+        self.SensorZenith    = np.cos(self.SensorZenith*np.pi/180.0)    
+        self.SolarZenith     = np.cos(self.SolarZenith*np.pi/180.0)     
+        self.GlintAngle      = np.cos(self.GlintAngle*np.pi/180.0)      
         self.AMF             = (1/self.SolarZenith) + (1/self.SensorZenith)
         self.giantList.append('AMF')
 
@@ -480,7 +530,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -582,7 +632,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)
-        self.iValid = ones(self.lon.shape).astype(bool)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -675,7 +725,7 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = np.ones(self.lon.shape).astype(bool)        
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -774,7 +824,7 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)
-        self.iValid = ones(self.lon.shape).astype(bool)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
 
 
         # Angle transforms: for NN work we work with cosine of angles
@@ -876,7 +926,7 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = np.ones(self.lon.shape).astype(bool)        
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -886,237 +936,179 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
 #----------------------------------------------------------------------------    
 class STATS(object):
 
-  def __init__ (self,K,comblist,nTarget):
-    c = max([len(comblist),1])
-    if K is None:
-      k = 1
-    else:
-      k = K
+    def __init__ (self,K,comblist,nTarget):
+        c = max([len(comblist),1])
+        if K is None:
+            k = 1
+        else:
+            k = K
 
-    self.slope     = np.ones([k,c,nTarget])*np.nan
-    self.intercept = np.ones([k,c,nTarget])*np.nan
-    self.R         = np.ones([k,c,nTarget])*np.nan
-    self.rmse      = np.ones([k,c,nTarget])*np.nan
-    self.mae       = np.ones([k,c,nTarget])*np.nan
-    self.me        = np.ones([k,c,nTarget])*np.nan
+        self.slope     = np.ones([k,c,nTarget])*np.nan
+        self.intercept = np.ones([k,c,nTarget])*np.nan
+        self.R         = np.ones([k,c,nTarget])*np.nan
+        self.rmse      = np.ones([k,c,nTarget])*np.nan
+        self.mae       = np.ones([k,c,nTarget])*np.nan
+        self.me        = np.ones([k,c,nTarget])*np.nan
 
 #---------------------------------------------------------------------
 def _train(mxd,expid,c):
 
-  ident  = mxd.ident
-  outdir = mxd.outdir
+    ident  = mxd.ident
+    outdir = mxd.outdir
 
-  nHidden  = mxd.nHidden
-  topology = mxd.topology[c]
+    nHidden  = mxd.nHidden
+    topology = mxd.topology[c]
 
-  Input    = mxd.comblist[c]
-  Target   = mxd.Target
+    Input    = mxd.comblist[c]
+    Target   = mxd.Target
   
-  print("-"*80)
-  print("--> nHidden = ", nHidden)
-  print("-->  Inputs = ", Input)
+    print("-"*80)
+    print("--> nHidden = ", nHidden)
+    print("-->  Inputs = ", Input)
   
-  n = cpu_count()
-  kwargs = {'nproc' : n}
-  if mxd.K is None:
-    mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-    mxd.savenet(outdir+"/"+expid+'_Tau.net')    
-  else:
-    k = 1
-    for iTrain, iTest in mxd.kf.split(arange(np.sum(mxd.iValid))):
-      I = arange(mxd.nobs)
-      iValid = I[mxd.iValid]
-      mxd.iTrain = iValid[iTrain]
-      mxd.iTest  = iValid[iTest]
-
-      mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-      mxd.savenet(outdir+"/"+expid+'.k={}_Tau.net'.format(str(k)))
-      k = k + 1
+    n = cpu_count()
+    kwargs = {'nproc' : n}
+    if mxd.K is None:
+        mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
+        mxd.savenet(outdir+"/"+expid+'_Tau.net')    
+    else:
+        k = 1
+        for iTrain, iTest in mxd.kf.split(np.arange(np.sum(mxd.iValid))):
+            I = np.arange(mxd.nobs)
+            iValid = I[mxd.iValid]
+            mxd.iTrain = iValid[iTrain]
+            mxd.iTest  = iValid[iTest]
+ 
+            mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
+            mxd.savenet(outdir+"/"+expid+'.k={}_Tau.net'.format(str(k)))
+            k = k + 1
 #--------------------------------------------------------------------------------------
 
 def _test(mxd,expid,c,plotting=True):
-  ident  = mxd.ident
-  outdir = mxd.outdir    
-  if mxd.K is None:
-    if mxd.combinations:
-      inputs = expid.split('.')
-      found = False
-      for invars in itertools.permutations(inputs):
-        try: 
-          netFile = outdir+"/"+".".join(invars)+'_Tau.net'
-          mxd.loadnet(netFile)
-          found = True
-          break
-        except:
-          pass
-        if found: break
-
-      if not found:
-        print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
-        raise
-    else:
-      invars = mxd.comblist[0]
-      netFile = outdir+"/"+".".join(invars)+'_Tau.net'
-
-    mxd.net = mxd.loadnet(netFile)
-    mxd.Input = mxd.comblist[c]
-    TestStats(mxd,mxd.K,c)
-    if plotting: 
-        if mxd.angstrom:
-            make_plots_angstrom(mxd,expid,ident,I=mxd.iTest)
-        elif mxd.angstrom_fit:
-            make_plots_angstrom_fit(mxd,expid,ident,I=mxd.iTest)            
+    ident  = mxd.ident
+    outdir = mxd.outdir    
+    if mxd.K is None:
+        # figure out the net filename
+        if mxd.combinations:
+            inputs = expid.split('.')
+            found = False
+            for invars in itertools.permutations(inputs):
+                try: 
+                    netFile = outdir+"/"+".".join(invars)+'_Tau.net'
+                    mxd.loadnet(netFile)
+                    found = True
+                    break
+                except:
+                    pass
+            if found: 
+                break
+            else:
+                raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))
+                
         else:
-            make_plots(mxd,expid,ident,I=mxd.iTest)
-  else:
-    k = 1
-    for iTrain, iTest in mxd.kf.split(arange(np.sum(mxd.iValid))):
-      I = arange(mxd.nobs)
-      iValid = I[mxd.iValid]
-      mxd.iTrain = iValid[iTrain]
-      mxd.iTest  = iValid[iTest]
+            invars = mxd.comblist[0]
+            netFile = outdir+"/"+".".join(invars)+'_Tau.net'
 
-      if mxd.combinations:
-        inputs = expid.split('.')
-        found = False
-        for invars in itertools.permutations(inputs):
-          try: 
-            netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
-            mxd.loadnet(netFile)
-            found = True
-            print('found file',netFile)
-            break
-          except:
-            pass
+        # load the net
+        mxd.net = mxd.loadnet(netFile)
+        mxd.Input = mxd.comblist[c]
+        # get statistics and plot
+        TestStats(mxd,mxd.K,c)
+        if plotting:
+            mxd.EvaluationPlots(expid,ident,mxd.iTest)
+    else:
+        # loop through k-folds and test
+        k = 1
+        for iTrain, iTest in mxd.kf.split(np.arange(np.sum(mxd.iValid))):
+            I = np.arange(mxd.nobs)
+            iValid = I[mxd.iValid]
+            mxd.iTrain = iValid[iTrain]
+            mxd.iTest  = iValid[iTest]
 
-        if not found:
-          print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
-          raise
-      else:
-        invars = mxd.comblist[0]
-        netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
+            # find the net file
+            if mxd.combinations:
+                inputs = expid.split('.')
+                found = False
+                for invars in itertools.permutations(inputs):
+                    try: 
+                      netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
+                      mxd.loadnet(netFile)
+                      found = True
+                      print('found file',netFile)
+                      break
+                    except:
+                      pass
 
+                if not found:
+                    raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))          
+            else:
+                invars = mxd.comblist[0]
+                netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
 
-      mxd.net = mxd.loadnet(netFile)
-      mxd.Input = mxd.comblist[c]      
-      TestStats(mxd,k-1,c)
-      if plotting: 
-          if mxd.angstrom:
-              make_plots_angstrom(mxd,expid,ident+'.k={}'.format(str(k)),I=mxd.iTest)
-          elif mxd.angstrom_ft:
-              make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)              
-          else:
-              make_plots(mxd,expid,ident+'.k={}'.format(str(k)),I=mxd.iTest)
-      k = k + 1    
+            # load the net
+            mxd.net = mxd.loadnet(netFile)
+            mxd.Input = mxd.comblist[c]      
+            # test and plot
+            TestStats(mxd,k-1,c)
+            if plotting: 
+                mxd.EvaluationPlots(expid,ident+'.k={}'.format(str(k)),mxd.iTest)
+            k = k + 1    
 
 #---------------------------------------------------------------------
 def _trainMODIS(mxdx):
 
-  if not mxdx.combinations:
-    Input = mxdx.comblist[0]
-    _train(mxdx,'.'.join(Input),0)
-  else:
-    for c,Input in enumerate(mxdx.comblist):
-      _train(mxdx,'.'.join(Input),c)
+    if not mxdx.combinations:
+        Input = mxdx.comblist[0]
+        _train(mxdx,'.'.join(Input),0)
+    else:
+        for c,Input in enumerate(mxdx.comblist):
+            _train(mxdx,'.'.join(Input),c)
 
 # -------------------------------------------------------------------
 def _testMODIS(mxdx):
 
-  if not mxdx.combinations:
-    _test(mxdx,mxdx.expid,0,plotting=True)
-  else:
-    for c,Input in enumerate(mxdx.comblist):
-      _test(mxdx,'.'.join(Input),c,plotting=False)
-
-      # because plotting is false, Get AE of MODIS
-      # it is other wise gotten within the plotting part
-      nwav = 6 
-      wavs = ['440','470','500','550','660','870']
-      wav  = np.array(wavs).astype(float)
-      wavm = []
-      for t in range(nwav):
-          name = 'mTau'+wavs[t]
-          if name in mxdx.__dict__:
-              wavm.append(t)      
-
-      if mxdx.K is None:
-          I = mxdx.iTest
-          mdata = []
-          fwav  = []
-          for t in wavm:
-              name = 'mTau'+wavs[t]
-              fwav.append(wav[t])
-              mdata.append(mxdx.__dict__[name][I])     
-          mdata = np.array(mdata)
-          fwav  = np.array(fwav)
-          fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-          AEm = fit[0,:]
-          AEb = fit[1,:]
-          mxdx.mAEfitm = np.ones(len(mxdx.mTau550))*-999
-          mxdx.mAEfitb = np.ones(len(mxdx.mTau550))*-999
-          mxdx.mAEfitm[I] = AEm
-          mxdx.mAEfitb[I] = AEb
-      else:
-          k = 1
-          for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
-              I = iTest
-
-              mdata = []
-              fwav  = []
-              for t in wavm:
-                  name = 'mTau'+wavs[t]
-                  fwav.append(wav[t])
-                  mdata.append(mxdx.__dict__[name][I])
-              mdata = np.array(mdata)
-              fwav  = np.array(fwav)
-              fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-              AEm = fit[0,:]
-              AEb = fit[1,:]
-
-              mxdx.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-              mxdx.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-              mxdx.__dict__['mAEfitm_{}'.format(k)][I]= AEm
-              mxdx.__dict__['mAEfitb_{}'.format(k)][I]= AEb
-
-              k += 1
-
+    if not mxdx.combinations:
+        _test(mxdx,mxdx.expid,0,plotting=True)
+    else:
+        for c,Input in enumerate(mxdx.comblist):
+            _test(mxdx,'.'.join(Input),c,plotting=False)
 
 #---------------------------------------------------------------------
 def get_combinations(Input_nnr,Input_const):
-  comblist   = []
-  combgroups = []
-  for n in arange(len(Input_nnr)):
-    for invars in itertools.combinations(Input_nnr,n+1):        
-      b = ()
-      for c in invars:
-        if type(c) is list:
-          b = b + tuple(c)
-        else:
-          b = b + (c,)
-      #don't do both kinds of abledo together
-      if not (('BRF' in b) and ('albedo' in b)):
-        if Input_const is not None:
-          comblist.append(tuple(Input_const)+b)
-          combgroups.append((Input_const,)+invars)
-        else:
-          comblist.append(b)
-          combgroups.append(invars)
+    comblist   = []
+    combgroups = []
+    for n in np.arange(len(Input_nnr)):
+        for invars in itertools.combinations(Input_nnr,n+1):        
+            b = ()
+            for c in invars:
+                if type(c) is list:
+                    b = b + tuple(c)
+                else:
+                    b = b + (c,)
+            #don't do both kinds of abledo together
+            if not (('BRF' in b) and ('albedo' in b)):
+                if Input_const is not None:
+                    comblist.append(tuple(Input_const)+b)
+                    combgroups.append((Input_const,)+invars)
+                else:
+                    comblist.append(b)
+                    combgroups.append(invars)
 
-  if Input_const is not None:
-    comblist.insert(0,tuple(Input_const))
-    combgroups.insert(0,(Input_const,))
+    if Input_const is not None:
+        comblist.insert(0,tuple(Input_const))
+        combgroups.insert(0,(Input_const,))
 
-  return comblist,combgroups
+    return comblist,combgroups
 #---------------------------------------------------------------------
 def flatten_list(Input_nnr):
-  Input = ()
-  for i in Input_nnr:
-    if type(i) is list:
-      Input = Input + tuple(i)
-    else:
-      Input = Input + (i,)
+    Input = ()
+    for i in Input_nnr:
+        if type(i) is list:
+            Input = Input + tuple(i)
+        else:
+            Input = Input + (i,)
 
-  return list(Input)
+    return list(Input)
         
 #------------------------------------------------------------------
   

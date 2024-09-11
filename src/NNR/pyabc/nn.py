@@ -20,8 +20,8 @@ from   scipy             import  stats, mgrid
 from   sklearn.model_selection import KFold
 #..............................................................
 class aodFormat(ticker.Formatter):
-    def __call__(self,x,logoffset=0.01,pos=None):
-        y = exp(x)-logoffset
+    def __call__(self,x,pos=None):
+        y = exp(x)-0.01
         return '%4.2f'%y
 #..............................................................
 

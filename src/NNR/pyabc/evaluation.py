@@ -40,9 +40,9 @@ class EVAL(object):
         self.make_plots('AllTest.'+expid,ident,I=I)
         for i,name in zip(Is,names):
             if len(i[0])>0:
-                self.make_plots(name+'.'+expid,ident,I=i[0])
+                self.make_plots(name+'.'+expid,ident,I=i[0],do2d=False)
 
-    def make_tau_kde_plots(self,expid,ident,I=None):
+    def make_tau_kde_plots(self,expid,ident,I=None,do2d=True):
         """
         create evaluation KDE plots
         this is for the special case that only AOD(s) is predicted
@@ -88,7 +88,8 @@ class EVAL(object):
 
 
         # plot KDE of new and original Tau
-        self.plot_tau_kde(targets,results,original,outdir,expid,ident)
+        if do2d:
+            self.plot_tau_kde(names,targets,results,original,outdir,expid,ident)
         self.plot_error_pdfs(names,targets,results,original,outdir,expid,ident)
 
         # If more than one target
@@ -99,7 +100,7 @@ class EVAL(object):
             names,AEt,AEr,AEo = self.plot_ae_kde(targets,results,original,outdir,expid,ident)
             self.plot_error_pdfs(names,AEt,AEr,AEo,outdir,expid,ident)
 #-----
-    def make_angstrom_kde_plots(self,expid,ident,I=None):
+    def make_angstrom_kde_plots(self,expid,ident,I=None,do2d=True):
         """
         create evaluation KDE plots
         this is for the special case that AOD550 and the AE at another channel is predicted
@@ -177,17 +178,20 @@ class EVAL(object):
 
 
         # plot KDE of new and original Tau
-        self.plot_tau_kde(targets,results,original,outdir,expid,ident)
+        if do2d:
+            self.plot_tau_kde(names,targets,results,original,outdir,expid,ident)
         self.plot_error_pdfs(names,targets,results,original,outdir,expid,ident)
 
         # Plot KDE of Angstrom Exponent
         # Implicitly requires AOD 550
         # -------------------------------
-        names,AEt,AEr,AEo = self.plot_ae_kde(targets,results,original,outdir,expid,ident)
+        names,AEt,AEr,AEo = self.get_ae550(targets,results,original)
+        if do2d:
+            self.plot_ae_kde(names,AEt,AEr,AEo,outdir,expid,ident)
         self.plot_error_pdfs(names,AEt,AEr,AEo,outdir,expid,ident)
 
 #-----
-    def make_angstrom_fit_kde_plots(self,expid,ident,I=None):
+    def make_angstrom_fit_kde_plots(self,expid,ident,I=None,do2d=True):
         """
         create evaluation KDE plots
         this is for the special case that AOD550 and the AE multi-spectral angstrom fit
@@ -263,7 +267,8 @@ class EVAL(object):
 
 
         # plot KDE of new and original Tau
-        self.plot_tau_kde(targets_,results_,original_,outdir,expid,ident)
+        if do2d:
+            self.plot_tau_kde(names_,targets_,results_,original_,outdir,expid,ident)
         self.plot_error_pdfs(names_,targets_,results_,original_,outdir,expid,ident)
 
         # get AE fit of original data
@@ -281,13 +286,14 @@ class EVAL(object):
         AEb = fit[1,:]            
 
         # Plot KDE of AE fits
-        title = "AE 440-870 " +ident
-        # original
-        figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm.png"
-        self._plot2dKDE(AEmt,AEm,y_label='Original Retrieval',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
-        # corrected
-        figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm-corrected.png"
-        self._plot2dKDE(AEmt,AEmr,y_label='NNR',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
+        if do2d:
+            title = "AE 440-870 " +ident
+            # original
+            figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm.png"
+            self._plot2dKDE(AEmt,AEm,y_label='Original Retrieval',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
+            # corrected
+            figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm-corrected.png"
+            self._plot2dKDE(AEmt,AEmr,y_label='NNR',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
         
         # error pdf
         AEmt.shape = AEmt.shape + (1,)
@@ -296,13 +302,14 @@ class EVAL(object):
 
         # if you tried to learn AEb, plot
         if AEbt is not None:
-            title = "AE intercept 440-870 " +ident
-            # original
-            figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb.png"
-            self._plot2dKDE(AEbt,AEb,y_label='Original Retrieval',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
-            # corrected
-            figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb-corrected.png"
-            self._plot2dKDE(AEbt,AEbr,y_label='NNR',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
+            if do2d:
+                title = "AE intercept 440-870 " +ident
+                # original
+                figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb.png"
+                self._plot2dKDE(AEbt,AEb,y_label='Original Retrieval',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
+                # corrected
+                figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb-corrected.png"
+                self._plot2dKDE(AEbt,AEbr,y_label='NNR',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
 
             # error pdf
             AEbt.shape = AEbt.shape + (1,)
@@ -328,46 +335,45 @@ class EVAL(object):
                 label2 = None
                 values2 = None
 
-            figfile = outdir+"/"+expid+"."+ident+"_error_pdf-"+name[1:]+'.png'
+            figfile = outdir+"/"+expid+"."+ident+"_error_pdf-"+name+'.png'
             title   = "Error " + name
             label   = 'NNR RMSE={:1.2F}'.format(nnrRMSE[t])
             values  = results[:,t] - tar
             self._plot1dKDE(values,label,values2=values2,label2=label2,figfile=figfile,title=title)
 
 #------
-    def plot_tau_kde(self,targets,results,original,outdir,expid,ident):
+    def plot_tau_kde(self,names,targets,results,original,outdir,expid,ident):
         """
         Generic wrapper for _plot2dKDE
         """
+        nobs, nTarget = targets.shape
         # plot KDE of new predictions
-        for t in range(self.nTarget):
-            figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'-corrected.png'
-            title = "Log("+self.Target[t][1:]+"+0.01)- "+ident
+        for t in range(nTarget):
+            figfile = outdir+"/"+expid+"."+ident+"_kde-"+names[t]+'-corrected.png'
+            title = "Log("+names[t]+"+0.01)- "+ident
             self._plot2dKDE(targets[:,t],results[:,t],y_label='NNR',figfile=figfile,title=title)
 
         # Plot KDE of uncorrected AOD
         # loop through targets
         # plot if there's a corresponding MODIS retrieval
-        for t in range(self.nTarget):
+        for t in range(nTarget):
             if original[t] is not None:
-                title = "Log("+self.Target[t][1:]+"+0.01)- "+ident
-                figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'.png'
+                title = "Log("+names[t]+"+0.01)- "+ident
+                figfile = outdir+"/"+expid+"."+ident+"_kde-"+names[t]+'.png'
                 self._plot2dKDE(targets[:,t],original[t],y_label='Original Retrieval',figfile=figfile,title=title)
 
                 # Scatter diagram for testing
                 # ---------------------------
-                figfile = outdir+"/"+expid+"."+ident+"_scat-"+self.Target[t][1:]+'.png'
+                figfile = outdir+"/"+expid+"."+ident+"_scat-"+names[t]+'.png'
                 self._plotScat(targets[:,t],original[t],y_values2=results[:,t],
                                y_label='Satellite',figfile=figfile,
                                label='Original',label2='Corrected')
-
 #------
-    def plot_ae_kde(self,targets,results,original,outdir,expid,ident):
+    def get_ae550(self,targets,results,original):
         """
-        generic calculation of AE with respect to 550 and create KDE plots
+        generic calculation of AE with respect to 550 
         implicitly requires 550 nm AOD
         """
-        bins = np.arange(0., 3., 0.05 )
         # AE from Corrected AOD
         # ----------------------
         refname = 'Tau550'
@@ -395,24 +401,39 @@ class EVAL(object):
 
                 AEt_.append(AEt)
                 AEr_.append(AEr)
-
-                title = "AE 550/"+name[4:]
-                names.append(title)
-                figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name[3:]+'-corrected.png'
-                self._plot2dKDE(AEt,AEr,y_label='NNR',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
+    
+                names.append(name[3:])
 
                 if orginial[t] is not None:
                     oo = np.exp(original[t]) # keep the + 0.01 to handle negatives in MODIS data
                     AEo = -1.*np.log(refo/oo)/np.log(refwav/wav)
-
-                    figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name[3:]+'.png'
-                    self._plot2dKDE(AEt,AEo,y_label='Standard',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
-
                     AEo_.append(AEo)
                 else:
                     AEo_.append(None)
 
         return names,AEt_,AEr_,AEo_
+#                
+#------
+    def plot_ae_kde(self,names,AEt,AEr,AEo,outdir,expid,ident):
+        """
+        generic wrapper to create AE with respect to 550 AOD KDE plots
+        """
+        bins = np.arange(0., 3., 0.05 )
+
+        # plot AE with respect to 550
+        for t,name in enumeate(names):
+
+                AEt_ = AEt[t]
+                AEr_ = AEr[t]
+
+                title = "AE 550/"+name
+                figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name+'-corrected.png'
+                self._plot2dKDE(AEt_,AEr_,y_label='NNR',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
+
+                if AEo[t] is not None:
+                    figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name+'.png'
+                    self._plot2dKDE(AEt_,AEo[t],y_label='Standard',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
+
 #------
     def _plot1dKDE(self,values,label,values2=None,label2=None,nbins=100,x_label='Difference',figfile=None,title=None):
         """
@@ -508,9 +529,9 @@ class EVAL(object):
 
         fig = plt.figure()
         ax = fig.add_axes([0.1,0.1,0.75,0.75])
-        ax.plot(x_values,y_values,label=label)
+        ax.plot(x_values,y_values,'ko',label=label)
         if y_values2 is not None:
-            ax.plot(x_values,y_values2,alpha=0.5,label=label2)
+            ax.plot(x_values,y_values2,'bo',alpha=0.5,label=label2)
         ax.plot([vmin,vmax],[vmin,vmax],'k')
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)

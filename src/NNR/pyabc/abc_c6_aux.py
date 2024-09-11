@@ -345,14 +345,18 @@ def make_plots(mxd,expid,ident,I=None):
   # Plot KDE of corrected AOD
   # -------------------------
   # mxd.plotKDE(I=I,figfile=expid+"."+ident+"_kde-"+mxd.Target[0][1:]+"-corrected.png")
-  targets  = mxd.getTargets(I)
+  targets  = mxd.getTargets(I,noscale=True)
   if mxd.nTarget == 1:
       targets.shape = targets.shape + (1,)
-  results = mxd.eval(I)
+
+  results = mxd.eval(I,noscale=True)
+  if not mxd.laod:
+      targets = np.log(targets + 0.01)
+      results = np.log(results + 0.01)
   # loop through targets
   for t in range(mxd.nTarget):
       fig = _plotKDE(targets[:,t],results[:,t],y_label='NNR')
-      title("Log("+mxd.Target[t][1:]+"+0.01)- "+ident)
+      title("Log("+mxd.Target[t][1:]+"+{})- ".format(mxd.logoffset)+ident)
       savefig(outdir+"/"+expid+"."+ident+"_kde-"+mxd.Target[t][1:]+'-corrected.png')
       plt.close(fig)
 
@@ -363,9 +367,9 @@ def make_plots(mxd,expid,ident,I=None):
   for t in range(mxd.nTarget):
       name = 'm'+mxd.Target[t][1:]
       if name in mxd.__dict__:
-          original = log(mxd.__dict__[name][I]+0.01)
+          original = log(mxd.__dict__[name][I]+mxd.logoffset)
           fig = _plotKDE(targets[:,t],original,y_label='Original MODIS')
-          title("Log("+mxd.Target[t][1:]+"+0.01)- "+ident)
+          title("Log("+mxd.Target[t][1:]+"+{})- ".format(mxd.logoffset)+ident)
           savefig(outdir+"/"+expid+"."+ident+"_kde-"+mxd.Target[t][1:]+'.png')
           plt.close(fig)
 
@@ -387,16 +391,16 @@ def make_plots(mxd,expid,ident,I=None):
       for t in range(mxd.nTarget):
           name = mxd.Target[t][1:]
           if name == refname:
-              reft = np.exp(targets[:,t]) # keep the + 0.01 to handle negatives in MODIS data
-              refr = np.exp(results[:,t]) # keep the + 0.01 to handle negatives in MODIS data
+              reft = np.exp(targets[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
+              refr = np.exp(results[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
       # calculate AE with respect to 550
       for t in range(mxd.nTarget):
           name = mxd.Target[t][1:]
           if name != refname:
               print('t,wav',t,name[3:])
               wav = float(name[3:])
-              tt = np.exp(targets[:,t]) # keep the + 0.01 to handle negatives in MODIS data
-              rr = np.exp(results[:,t]) # keep the + 0.01 to handle negatives in MODIS data
+              tt = np.exp(targets[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
+              rr = np.exp(results[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
               AEt = -1.*np.log(reft/tt)/np.log(refwav/wav)
               AEr = -1.*np.log(refr/rr)/np.log(refwav/wav)
 
@@ -422,7 +426,7 @@ def make_plots(mxd,expid,ident,I=None):
                   print('orig t,wav',t,name[4:])
                   wav = float(name[4:])
                   oo = mxd.__dict__[name][I] + 0.01 # add 0.01 to handle negatives
-                  tt = np.exp(targets[:,t]) # keep + 0.01 to handle negatives
+                  tt = np.exp(targets[:,t]) - mxd.logoffset + 0.01 # keep + 0.01 to handle negatives
                   AEo = -1.*np.log(refo/oo)/np.log(refwav/wav)
                   AEt = -1.*np.log(reft/tt)/np.log(refwav/wav)
                   fig = _plotKDE(AEt,AEo,y_label='Original MODIS',x_bins=bins,y_bins=bins)
@@ -441,32 +445,48 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
 
   # get the AOD from the predicted angstrom exponent
   # ------------------------------------------------
-  targets  = mxd.getTargets(I)
-  results = mxd.eval(I)
+  targets  = mxd.getTargets(I,noscale=True)
+  results = mxd.eval(I,noscale=True)
   base_wav = mxd.AE_base_wav
   for t in range(mxd.nTarget):
       tname = mxd.Target[t]
       if 'Tau' in tname:
           base_name = tname
-          base_tau_t  = np.exp(targets[:,t]) - 0.01
-          base_tau_r  = np.exp(results[:,t]) - 0.01
+          if mxd.laod:
+              base_tau_t  = np.exp(targets[:,t]) - mxd.logoffset
+              base_tau_r  = np.exp(results[:,t]) - mxd.logoffset
+          else:
+              base_tau_t = targets[:,t]
+              base_tau_r = results[:,t]
 
   for t in range(mxd.nTarget):
       tname = mxd.Target[t]
       if 'AE' in tname:
           wav = float(tname.split('AE')[-1])
           tau = base_tau_t*np.exp(-1.*np.log(wav/base_wav)*targets[:,t])
-          targets[:,t] = np.log(tau + 0.01)
+          if mxd.laod:
+              targets[:,t] = np.log(tau + mxd.logoffset)
+          else:
+              targets[:,t] = tau
 
           tau = base_tau_r*np.exp(-1.*np.log(wav/base_wav)*results[:,t])
-          results[:,t] = np.log(tau + 0.01)
+          if mxd.laod:
+              results[:,t] = np.log(tau + mxd.logoffset)
+          else:
+              results[:,t] = tau
 
   # Plot KDE of corrected AOD
   # -------------------------
   # loop through targets
   for t in range(mxd.nTarget):
+      if not mxd.laod:
+          ii = results[:,t] < 0.0
+          results[ii,t] = 0.0
+          targets[:,t] = np.log(targets[:,t] + 0.01)
+          results[:,t] = np.log(results[:,t] + 0.01)
+      
       fig = _plotKDE(targets[:,t],results[:,t],y_label='NNR')
-      title("Log("+mxd.Target[t][1:]+"+0.01)- "+ident)
+      title("Log("+mxd.Target[t][1:]+"+{})- ".format(mxd.logoffset)+ident)
       tname = mxd.Target[t]
       if 'AE' in tname:
           wavs = tname.split('AE')[-1]
@@ -488,13 +508,13 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
       else:
           name = 'm'+mxd.Target[t][1:]
       if name in mxd.__dict__:
-          original = log(mxd.__dict__[name][I]+0.01)
+          original = log(mxd.__dict__[name][I]+mxd.logoffset)
 
           # protect against some of the othe wavelengths having negative values
           ii = mxd.__dict__[name][I] > -0.01
 
           fig = _plotKDE(targets[:,t][ii],original[ii],y_label='Original MODIS')
-          title("Log("+mxd.Target[t][1:]+"+0.01)- "+ident)
+          title("Log("+mxd.Target[t][1:]+"+{})- ".format(mxd.logoffset)+ident)
           savefig(outdir+"/"+expid+"."+ident+"_kde-"+name[1:]+'.png')
           plt.close(fig)
 
@@ -517,8 +537,8 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
       for t in range(mxd.nTarget):
           name = mxd.Target[t][1:]
           if name == refname:
-              reft = np.exp(targets[:,t]) # keep the + 0.01 to handle negatives in MODIS data
-              refr = np.exp(results[:,t]) # keep the + 0.01 to handle negatives in MODIS data
+              reft = np.exp(targets[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
+              refr = np.exp(results[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
       # calculate AE with respect to 550
       for t in range(mxd.nTarget):
           tname = mxd.Target[t]
@@ -530,8 +550,8 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
           if name != refname:
               print('t,wav',t,name[3:])
               wav = float(name[3:])
-              tt = np.exp(targets[:,t]) # keep the + 0.01 to handle negatives in MODIS data
-              rr = np.exp(results[:,t]) # keep the + 0.01 to handle negatives in MODIS data
+              tt = np.exp(targets[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
+              rr = np.exp(results[:,t]) - mxd.logoffset + 0.01 # keep the + 0.01 to handle negatives in MODIS data
               AEt = -1.*np.log(reft/tt)/np.log(refwav/wav)
               AEr = -1.*np.log(refr/rr)/np.log(refwav/wav)
 
@@ -565,7 +585,7 @@ def make_plots_angstrom(mxd,expid,ident,I=None):
                   # protect against interpolated wavelengths that might have -9999
                   ii = oo > 0
                   oo = oo[ii]
-                  tt = np.exp(targets[:,t][ii]) # keep + 0.01 to handle negatives
+                  tt = np.exp(targets[:,t][ii]) - mxd.logoffset + 0.01 # keep + 0.01 to handle negatives
                   AEo = -1.*np.log(refo[ii]/oo)/np.log(refwav/wav)
                   AEt = -1.*np.log(reft[ii]/tt)/np.log(refwav/wav)
                   fig = _plotKDE(AEt,AEo,y_label='Original MODIS',x_bins=bins,y_bins=bins)
@@ -587,6 +607,9 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   # ------------------------------------------------
   targets  = mxd.getTargets(I)
   results = mxd.eval(I)
+  if mxd.scale:
+      targets = mxd.scaler.inverse_transform(targets)
+      results = mxd.scaler.inverse_transform(results)
 
   # see if there are any AOD predictions
   # plot KDE of corrected AOD
@@ -594,8 +617,13 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   for t in range(mxd.nTarget):
       tname = mxd.Target[t]
       if 'Tau' in tname:
+          if not mxd.laod:
+              ii = results[:,t] < 0.0
+              results[ii,t] = 0.0
+              targets[:,t] = np.log(targets[:,t] + 0.01)
+              results[:,t] = np.log(results[:,t] + 0.01) 
           fig = _plotKDE(targets[:,t],results[:,t],y_label='NNR')
-          title("Log(tau"+tname[4:]+"+0.01)- "+ident)
+          title("Log(tau"+tname[4:]+"+{})- ".format(mxd.logoffset)+ident)
           savefig(outdir+"/"+expid+"."+ident+"_kde-Tau"+tname[4:]+'-corrected.png')
           plt.close(fig)          
 
@@ -641,7 +669,7 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   results_ = np.zeros([nobs,nwav])
   for i in range(nwav):
       tau = mxd.__dict__['aTau'+wavs[i]][I]
-      targets_[:,i] = np.log(tau + 0.01)
+      targets_[:,i] = np.log(tau + mxd.logoffset)
 
       results_[:,i] = -1.*(AEmr*np.log(wav[i]) + AEbr)
 
@@ -650,7 +678,7 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
   # loop through targets
   for t in range(nwav):
       fig = _plotKDE(targets_[:,t],results_[:,t],y_label='NNR')
-      title("Log(tau"+wavs[t]+"+0.01)- "+ident)
+      title("Log(tau"+wavs[t]+"+{})- ".format(mxd.logoffset)+ident)
       savefig(outdir+"/"+expid+"."+ident+"_kde-Tau"+wavs[t]+'-fitcorrected.png')
       plt.close(fig)
 
@@ -664,13 +692,13 @@ def make_plots_angstrom_fit(mxd,expid,ident,I=None,k=None):
       name = 'mTau'+wavs[t]
       if name in mxd.__dict__:
           wavm.append(t)
-          original = log(mxd.__dict__[name][I]+0.01)
+          original = log(mxd.__dict__[name][I]+mxd.logoffset)
 
           # protect against some of the othe wavelengths having negative values
           ii = mxd.__dict__[name][I] > -0.01
 
           fig = _plotKDE(targets_[:,t][ii],original[ii],y_label='Original MODIS')
-          title("Log(tau"+wavs[t]+"+0.01)- "+ident)
+          title("Log(tau"+wavs[t]+"+{})- ".format(mxd.logoffset)+ident)
           savefig(outdir+"/"+expid+"."+ident+"_kde-"+name[1:]+'.png')
           plt.close(fig)
 
@@ -739,24 +767,47 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
     if (name in mxd.__dict__) or ('AE' in name):
       if K is None:
         targets  = mxd.getTargets(I[0])
+        if mxd.scale:
+            targets = mxd.scaler.inverse_transform(targets)
         if mxd.nTarget > 1: 
             targets = targets[:,t]
 
         inputs = mxd.getInputs(I[0],Input=Input)
-        knet = mxd.loadnet(netfileRoot+'_Tau.net')
-        results = knet(inputs)[:,t]
+        knet = mxd.loadnet(netfileRoot+'_Tau.net')        
+        results = knet(inputs)
+        if mxd.scale:
+            results = mxd.scaler.inverse_transform(results)
+        results = results[:,t]
 
         if 'Tau' not in name:
             if mxd.angstrom_fit:
                 original = mxd.__dict__[name][I[0]]
             else:
-                base_tau_t = np.exp(mxd.getTargets(I[0])[:,mxd.AE_base_wav_i]) - 0.01
+                tar = mxd.getTargets(I[0])
+                if mxd.scale:
+                    tar = mxd.scaler.inverse_transform(tar)
+                if mxd.laod:
+                    base_tau_t = np.exp(tar[:,mxd.AE_base_wav_i]) - mxd.logoffset
+                else:
+                    base_tau_t = tar[:,mxd.AE_base_wav_i]
                 tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets)
-                targets = np.log(tau + 0.01)
+                if mxd.laod:
+                    targets = np.log(tau + mxd.logoffset)
+                else:
+                    targets = tau
 
-                base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
+                res = knet(inputs)
+                if mxd.scale:
+                    res = mxd.scaler.inverse_transform(res)
+                if mxd.laod:
+                    base_tau_r = np.exp(res[:,mxd.AE_base_wav_i]) - mxd.logoffset
+                else:
+                    base_tau_r = res[:,mxd.AE_base_wav_i]
                 tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results)
-                results = np.log(tau + 0.01)
+                if mxd.laod:
+                    results = np.log(tau + mxd.logoffset)
+                else:
+                    results = tau
 
                 original = mxd.__dict__[name][I[0]]
         
@@ -769,7 +820,24 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
             results = results[ii]
 
             if mxd.laod:
-              original = log(original + 0.01)
+              original = log(original + mxd.logoffset)
+
+            if mxd.laod:
+                ii = np.exp(results)-mxd.logoffset > -0.01
+            else:
+                ii = results > -0.01
+            original = original[ii]
+            targets = targets[ii]
+            results = results[ii]
+
+            if mxd.laod:
+                original = np.log(np.exp(original)-mxd.logoffset+0.01)
+                targets  = np.log(np.exp(targets)-mxd.logoffset+0.01)
+                results  = np.log(np.exp(results)-mxd.logoffset+0.01)
+            else:
+                original = np.log(original + 0.01)
+                targets  = np.log(targets  + 0.01)
+                results  = np.log(results  + 0.01)
 
         mod04RMSE = rmse(original,targets)
         nnrRMSE   = rmse(results,targets)
@@ -787,6 +855,8 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
           mxd.iTest    = iTest
 
           targets_ = mxd.getTargets(mxd.iTest)
+          if mxd.scale:
+              targets_ = mxd.scaler.inverse_transform(targets_)
           if mxd.nTarget > 1:
               targets_ = targets_[:,t]
           targets.append(targets_)
@@ -794,27 +864,48 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
           inputs = mxd.getInputs(mxd.iTest,Input=Input)
 
           knet = mxd.loadnet(netfileRoot+'.k={}_Tau.net'.format(str(k+1)))
-          out = knet(inputs)[:,t]
-          results.append(out)
+          out = knet(inputs)
+          if mxd.scale:
+              out = mxd.scaler.inverse_transform(out)
+          results.append(out[:,t])
 
           if 'Tau' not in tname:
               if mxd.angstrom_fit:
                   original.append(mxd.__dict__[name+'_{}'.format(k)[mxd.iTest]])
               else:
-                  base_tau_t = np.exp(mxd.getTargets(mxd.iTest)[:,mxd.AE_base_wav_i]) - 0.01
-                  tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets[k])
-                  targets[k] = np.log(tau + 0.01)
+                  targets = mxd.getTargets(mxd.iTest)
+                  if mxd.scale:
+                      targets = mxd.scaler.inverse_transform(targets)
+                  if mxd.laod:
+                      base_tau_t = np.exp(targets[:,mxd.AE_base_wav_i]) - mxd.logoffset
+                  else:
+                      base_tau_t = targets[:,mxd.AE_base_wav_i]
 
-                  base_tau_r = np.exp(knet(inputs)[:,mxd.AE_base_wav_i]) - 0.01
+                  tau = base_tau_t*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*targets[k])
+                  if mxd.laod:
+                      targets[k] = np.log(tau + mxd.logoffset)
+                  else:
+                      targets[k] = tau
+
+                  results = knet(inputs)
+                  if mxd.scale:
+                      results = mxd.scaler.inverse_transform(results)
+                  if mxd.laod:
+                      base_tau_r = np.exp(results[:,mxd.AE_base_wav_i]) - mxd.logoffset
+                  else:
+                      base_tau_r = results[:,mxd.AE_base_wav_i]
                   tau = base_tau_r*np.exp(-1.*np.log(wav/mxd.AE_base_wav)*results[k])
-                  results[k] = np.log(tau + 0.01)
+                  if mxd.laod:
+                      results[k] = np.log(tau + mxd.logoffset)
+                  else:
+                      results[k] = tau
           
                   original.append(mxd.__dict__[name][mxd.iTest])
           else:
               original.append(mxd.__dict__[name][mxd.iTest])
 
           if mxd.laod:
-            original[k] = log(original[k] + 0.01)
+            original[k] = log(original[k] + mxd.logoffset)
 
           mod04RMSE.append(rmse(original[k],targets[k]))
           nnrRMSE.append(rmse(results[k],targets[k]))
@@ -889,7 +980,7 @@ def make_error_pdfs(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRoot=N
       plt.grid(True, which='major',axis='both',color='0.50',linestyle='-')
 
       if Title is None:
-        title("Error Log("+name[1:]+"+0.01)")
+        title("Error Log("+name[1:]+"+{})".format(mxd.logoffset))
       else:
         title(Title)
       savefig(outdir+"/error_pdf-"+expid+"."+ident+"-"+name[1:]+'.png')  
@@ -909,22 +1000,26 @@ def make_error_pdfs_int(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRo
   # -------------------------
   if K is None:
     targets  = [mxd.getTargets(I[0])]
+    if mxd.scale:
+        targets[0] = mxd.scaler.inverse_transform(targets[0])
     if len(targets[0].shape) > 1:
       targets[0] = targets[0][:,0]
 
     # results    = [mxd.eval(I)[:,0]]
     inputs = mxd.getInputs(I[0],Input=Input)
     knet = mxd.loadnet(netfileRoot)
-    out = knet(inputs)[:,0]
-    results = [out]
+    out = knet(inputs)
+    if mxd.scale:
+        out = mxd.scaler.inverse_transform(out)
+    results = [out[:,0]]
 
 
     original   = [mxd.mTau550[I[0]]]
     dboriginal = [mxd.dbmTau550[I[0]]]    
 
     if mxd.laod:
-      original[0]   = log(original[0] + 0.01)
-      dboriginal[0] = log(dboriginal[0] + 0.01)
+      original[0]   = log(original[0] + mxd.logoffset)
+      dboriginal[0] = log(dboriginal[0] + mxd.logoffset)
 
     mod04RMSE   = rmse(original[0],targets[0])
     dbmod04RMSE = rmse(dboriginal[0],targets[0])
@@ -944,6 +1039,8 @@ def make_error_pdfs_int(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRo
       mxd.iTest    = iTest
 
       targets.append(mxd.getTargets(mxd.iTest))
+      if mxd.scale:
+          targets[k] = mxd.scaler.inverse_transform(targets[k])
       if len(targets[k].shape) > 1:
             targets[k] = targets[k][:,0]
 
@@ -953,12 +1050,15 @@ def make_error_pdfs_int(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRo
       inputs = mxd.getInputs(mxd.iTest,Input=Input)
 
       knet = mxd.loadnet(netfileRoot+'.k={}_Tau.net'.format(str(k+1)))
-      out = knet(inputs)[:,0]
-      results.append(out)
+      out = knet(inputs)
+      if mxd.scale:
+          out = mxd.scaler.inverse_transform(out)
+      results.append(out[:,0])
+      
 
       if mxd.laod:
-        original[k]   = log(original[k] + 0.01)
-        dboriginal[k] = log(dboriginal[k] + 0.01)
+        original[k]   = log(original[k] + mxd.logoffset)
+        dboriginal[k] = log(dboriginal[k] + mxd.logoffset)
 
       mod04RMSE.append(rmse(original[k],targets[k]))
       dbmod04RMSE.append(rmse(dboriginal[k],targets[k]))
@@ -1051,7 +1151,7 @@ def make_error_pdfs_int(mxd,Input,expid,ident,K=None,I=None,Title=None,netfileRo
   plt.grid(True, which='major',axis='both',color='0.50',linestyle='-')
 
   if Title is None:
-    title("Error Log("+mxd.Target[0][1:]+"+0.01)")
+    title("Error Log("+mxd.Target[0][1:]+"+{})".format(mxd.logoffset))
   else:
     title(Title)
   savefig(outdir+"/error_int_pdf-"+expid+"."+ident+"-"+mxd.Target[0][1:]+'.png')  
@@ -1087,12 +1187,17 @@ def make_error_pdfs_dbdt(mxd,mxd2,Input,expid,ident,K=None,I=None,Title=None,
     out = knet(inputs)[:,0]
     results2 = [out]
 
+    if mxd.scale:
+        targets[0] = mxd.scaler.inverse_transform(targets[0])
+        results[0] = mxd.scaler.inverse_transform(results[0])
+        results2[0] = mxd.scaler.inverse_transform(results2[0])
+
     original   = [mxd.mTau550[I[0]]]
     dboriginal = [mxd.dbmTau550[I[0]]]    
 
     if mxd.laod:
-      original[0]   = log(original[0] + 0.01)
-      dboriginal[0] = log(dboriginal[0] + 0.01)
+      original[0]   = log(original[0] + mxd.logoffset)
+      dboriginal[0] = log(dboriginal[0] + mxd.logoffset)
 
     mod04RMSE   = rmse(original[0],targets[0])
     dbmod04RMSE = rmse(dboriginal[0],targets[0])
@@ -1114,27 +1219,34 @@ def make_error_pdfs_dbdt(mxd,mxd2,Input,expid,ident,K=None,I=None,Title=None,
       # mxd.iTest  = iValid[iTest]
       mxd.iTest    = iTest
 
-      targets.append(mxd.getTargets(mxd.iTest))
+      tar = mxd.getTargets(mxd.iTest)
+      inputs = mxd.getInputs(mxd.iTest,Input=Input)
+      knet = mxd.loadnet(netfileRoot+'.k={}_Tau.net'.format(str(k+1)))
+      out = knet(inputs)[:,0]
+      if mxd.scale:
+          tar = mxd.scaler.inverse_transform(tar)
+          out = mxd.scaler.inverse_transform(out)
+
+      targets.append(tar)
       if len(targets[k].shape) > 1:
             targets[k] = targets[k][:,0]
+
+      results.append(out[:,0])
 
       original.append(mxd.mTau550[mxd.iTest])
       dboriginal.append(mxd.dbmTau550[mxd.iTest])
 
-      inputs = mxd.getInputs(mxd.iTest,Input=Input)
-
-      knet = mxd.loadnet(netfileRoot+'.k={}_Tau.net'.format(str(k+1)))
-      out = knet(inputs)[:,0]
-      results.append(out)
 
       inputs = mxd2.getInputs(mxd.iTest,Input=Input2)
       knet = mxd2.loadnet(netfileRoot2+'.k={}_Tau.net'.format(str(k+1)))
-      out = knet(inputs)[:,0]
-      results2.append(out)
+      out = knet(inputs)
+      if mxd.scale:
+          out = mxd.scaler.inverse_transform(out)
+      results2.append(out[:,0])
 
       if mxd.laod:
-        original[k]   = log(original[k] + 0.01)
-        dboriginal[k] = log(dboriginal[k] + 0.01)
+        original[k]   = log(original[k] + mxd.logoffset)
+        dboriginal[k] = log(dboriginal[k] + mxd.logoffset)
 
       mod04RMSE.append(rmse(original[k],targets[k]))
       dbmod04RMSE.append(rmse(dboriginal[k],targets[k]))
@@ -1277,6 +1389,10 @@ def TestStats(mxd,K,C):
     if mxd.nTarget == 1:
         targets.shape = targets.shape + (1,)
 
+    if mxd.scale:
+        targets = mxd.scaler.inverse_transform(targets)
+        out     = mxd.scaler.inverse_transform(out)
+
     # get other NNR STATS
     mxd.nnr.rmse[k,c,:] = rmse(out,targets)
     mxd.nnr.mae[k,c,:]  = mae(out,targets)
@@ -1289,7 +1405,7 @@ def TestStats(mxd,K,C):
         if name in mxd.__dict__:
             original = mxd.__dict__[name][mxd.iTest]
             if ('Tau' in name) and mxd.laod:
-                original = log(original + 0.01)
+                original = log(original + mxd.logoffset)
 
             # get original MODIS stats 
             lm = LinearRegression()

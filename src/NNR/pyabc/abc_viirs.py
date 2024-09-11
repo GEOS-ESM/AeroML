@@ -36,7 +36,9 @@ VARNAMES    = {'cloud': 'MOD04 Cloud Fraction',
                'year': 'Year'}
 #--------------------------------------------------------------------------------------
 class SETUP(object):
-  def setupNN(self,retrieval,expid,
+    def __init__(self):
+        pass
+    def setupNN(self,retrieval,expid,
                  nHidden=None,
                  nHLayers=1,
                  combinations=False,
@@ -55,140 +57,140 @@ class SETUP(object):
                  nbins = 6,
                  lInput_nnr = None):
 
-    """
-    lInput_nnr --- optional, give a list of the nnr input variables that you want to log transform
-    """  
+        """
+        lInput_nnr --- optional, give a list of the nnr input variables that you want to log transform
+        """  
     
-    self.retrieval = retrieval
-    self.lInput_nnr = lInput_nnr
-    # Create outdir if it doesn't exist
-    # ---------------------------------
-    self.outdir = "./{}/".format(expid)
-    if not os.path.exists(self.outdir):
-      os.makedirs(self.outdir)
+        self.retrieval = retrieval
+        self.lInput_nnr = lInput_nnr
+        # Create outdir if it doesn't exist
+        # ---------------------------------
+        self.outdir = "./{}/".format(expid)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
 
-    self.plotdir = self.outdir
+        self.plotdir = self.outdir
 
-    # save some inputs
-    # -----------------
-    self.expid   = expid
-    self.Target  = Target
-    self.nTarget = len(Target)
-    self.K       = K
-    self.nHidden = nHidden
+        # save some inputs
+        # -----------------
+        self.expid   = expid
+        self.Target  = Target
+        self.nTarget = len(Target)
+        self.K       = K
+        self.nHidden = nHidden
 
-    # figure out if you need to calculate 
-    # the angstrom exponent at each wavelength
-    # of the angstrom fit for all wavelengths
-    # ---------------------------------------
-    angstrom = False
-    angstrom_fit = False
-    for tname in Target:
-        if not angstrom:
-            if ('AE' in tname) and ('AEfit' not in tname):
-                angstrom = True
-            if not angstrom_fit:
-                if 'AEfit' in tname:
-                    angstrom_fit = True
-    self.angstrom = angstrom
-    self.angstrom_fit = angstrom_fit
+        # figure out if you need to calculate 
+        # the angstrom exponent at each wavelength
+        # of the angstrom fit for all wavelengths
+        # ---------------------------------------
+        angstrom = False
+        angstrom_fit = False
+        for tname in Target:
+            if not angstrom:
+                if ('AE' in tname) and ('AEfit' not in tname):
+                    angstrom = True
+                if not angstrom_fit:
+                    if 'AEfit' in tname:
+                        angstrom_fit = True
+        self.angstrom = angstrom
+        self.angstrom_fit = angstrom_fit
 
-    # if angstrom is being trained
-    # find the base wavelength
-    # calculate angstrom with respect to the base wavelength
-    # -----------------------------------------------------
-    if angstrom:
-        self.get_aAE()
-        self.get_mAE()
+        # if angstrom is being trained
+        # find the base wavelength
+        # calculate angstrom with respect to the base wavelength
+        # -----------------------------------------------------
+        if angstrom:
+            self.get_aAE()
+            self.get_mAE()
 
-    # if angstrom_fit is being trained
-    # calculate a linear fit to the log-log
-    # of wavelength and AOD 440-870
-    # -------------------------------------------------------
-    if angstrom_fit:
-        self.get_aAEfit()
-        self.get_mAEfit()
+        # if angstrom_fit is being trained
+        # calculate a linear fit to the log-log
+        # of wavelength and AOD 440-870
+        # -------------------------------------------------------
+        if angstrom_fit:
+            self.get_aAEfit()
+            self.get_mAEfit()
 
-    # Fit the standard scalar of the targets
-    # ---------------------------------------
-    self.scaler = None
-    if self.scale:
-        targets = self.getTargets(self.iValid) 
-        self.scaler = StandardScaler()
-        self.scaler.fit(targets)
+        # Fit the standard scalar of the targets
+        # ---------------------------------------
+        self.scaler = None
+        if self.scale:
+            targets = self.getTargets(self.iValid) 
+            self.scaler = StandardScaler()
+            self.scaler.fit(targets)
 
-    # Balance the dataset before splitting
-    # No aerosol type should make up more that 35% 
-    # of the total number of obs
-    # f_balance is the fraction that defines whether a species 'dominates'
-    # --------------------------------------
-    self.f_balance = f_balance
-    self.q_balance = q_balance
-    if q_balance:
-        self.minN = minN
-        self.fignore = fignore
-        self.iValid = self.spc_target_balance(minN=minN,frac=f_balance,fignore=fignore,nbins=nbins)
-    elif f_balance > 0:
-        self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
+        # Balance the dataset before splitting
+        # No aerosol type should make up more that 35% 
+        # of the total number of obs
+        # f_balance is the fraction that defines whether a species 'dominates'
+        # --------------------------------------
+        self.f_balance = f_balance
+        self.q_balance = q_balance
+        if q_balance:
+            self.minN = minN
+            self.fignore = fignore
+            self.iValid = self.spc_target_balance(minN=minN,frac=f_balance,fignore=fignore,nbins=nbins)
+        elif f_balance > 0:
+            self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
 
-    # Flatten Input_nnr into one list
-    # -------------------------------
-    input_nnr = flatten_list(Input_nnr)
+        # Flatten Input_nnr into one list
+        # -------------------------------
+        input_nnr = flatten_list(Input_nnr)
 
-    # Create list of combinations
-    # ---------------------------
-    if combinations:
-        self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
-    else:
-        self.comblist = [input_nnr]
-          
-    # Initialize arrays to hold stats
-    # ------------------------------
-    self.nnr  = STATS(K,self.comblist,self.nTarget)
-    self.orig = STATS(K,self.comblist,self.nTarget)
-
-    # Initialize K-folding
-    # --------------------
-    if K is None:
-        self.iTest = np.ones([self.nobs]).astype(bool)
-        self.iTrain = np.ones([self.nobs]).astype(bool)
-        if (f_balance > 0) or q_balance:
-            self.iTest = ~self.iValid.copy()
-            self.iTrain = self.iValid.copy()
-    else:
-        self.kfold(K=K)
-
-    # Create list of topologies
-    # -------------------------  
-    self.topology = []
-    if not combinations:
-        if self.nHidden is None:
-            self.nHidden  = len(input_nnr)
+        # Create list of combinations
+        # ---------------------------
+        if combinations:
+            self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
         else:
-            self.nHidden = nHidden
+            self.comblist = [input_nnr]
+              
+        # Initialize arrays to hold stats
+        # ------------------------------
+        self.nnr  = STATS(K,self.comblist,self.nTarget)
+        self.orig = STATS(K,self.comblist,self.nTarget)
 
-        self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
+        # Initialize K-folding
+        # --------------------
+        if K is None:
+            self.iTest = np.ones([self.nobs]).astype(bool)
+            self.iTrain = np.ones([self.nobs]).astype(bool)
+            if (f_balance > 0) or q_balance:
+                self.iTest = ~self.iValid.copy()
+                self.iTrain = self.iValid.copy()
+        else:
+            self.kfold(K=K)
 
-    else:
-        for c,Input in enumerate(self.comblist):
-            if nHidden is None:
-              self.nHidden  = len(Input)
+        # Create list of topologies
+        # -------------------------  
+        self.topology = []
+        if not combinations:
+            if self.nHidden is None:
+                self.nHidden  = len(input_nnr)
             else:
-              self.nHidden = nHidden
+                self.nHidden = nHidden
 
-            self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
+            self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
 
-    self.combinations = combinations
+        else:
+            for c,Input in enumerate(self.comblist):
+                if nHidden is None:
+                    self.nHidden  = len(Input)
+                else:
+                    self.nHidden = nHidden
+
+                self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
+
+        self.combinations = combinations
 
 
-    # optional log transform input variables log
-    if lInput_nnr is not None:
-        for vname in lInput_nnr:
-            if 'Tau' in vname:
-                self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
-            else:
-                self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
-            
+        # optional log transform input variables log
+        if lInput_nnr is not None:
+            for vname in lInput_nnr:
+                if 'Tau' in vname:
+                    self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+                else:
+                    self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+                
 # ---
     def get_aAE(self):
         """ 
@@ -272,7 +274,7 @@ class SETUP(object):
         for w in wavs:
             if 'mTau'+w in self.__dict__:
                 tau.append(self.__dict__['mTau'+w])
-                wav.append(float(wavs))
+                wav.append(float(w))
 
         tau = np.array(tau)
         wav = np.array(wav)
@@ -1000,9 +1002,7 @@ def _test(mxd,expid,c,plotting=True):
                     break
                 except:
                     pass
-            if found: 
-                break
-            else:
+            if not found:
                 raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))
                 
         else:
@@ -1015,6 +1015,7 @@ def _test(mxd,expid,c,plotting=True):
         # get statistics and plot
         TestStats(mxd,mxd.K,c)
         if plotting:
+            mxd.plotdir = outdir+"/"+".".join(invars)
             mxd.EvaluationPlots(expid,ident,mxd.iTest)
     else:
         # loop through k-folds and test
@@ -1050,7 +1051,8 @@ def _test(mxd,expid,c,plotting=True):
             mxd.Input = mxd.comblist[c]      
             # test and plot
             TestStats(mxd,k-1,c)
-            if plotting: 
+            if plotting:
+                mxd.plotdir = outdir+"/"+".".join(invars)
                 mxd.EvaluationPlots(expid,ident+'.k={}'.format(str(k)),mxd.iTest)
             k = k + 1    
 

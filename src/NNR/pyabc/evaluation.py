@@ -14,7 +14,7 @@ import itertools
 from   sklearn.linear_model import LinearRegression
 from   glob                 import glob
 from   scipy                import stats
-from   .nn                  import aodFormat
+from   .nn                  import aodFormat, _cat2
 #--------------
 
 
@@ -25,8 +25,8 @@ class EVAL(object):
         Creates all the evaluation plots
         nnr2 = another set of obs.  if you want to look at where they overlap. not implemented yet.
         """
-        I1, I2, I3, I4 = self.get_Iquartiles(I=I)
-        Ifdu, Ifss, Ifcc, Ifsu, Ifna = self.get_Ispecies(I=I)
+        I1, I2, I3, I4 = self.get_Iquartiles(I=[I])
+        Ifdu, Ifss, Ifcc, Ifsu, Ifna = self.get_Ispecies(I=[I])
 
         if self.angstrom_fit:
             self.make_plots = self.make_angstrom_fit_kde_plots 
@@ -35,16 +35,12 @@ class EVAL(object):
         else:
             self.make_plots = self.make_tau_kde_plots
 
-        self.make_plots('AllTest_k{}'.format(k),self.ident,I=i)
-        self.make_plots('q25_k{}'.format(k),self.ident,I=i)
-        self.make_plots('q50_k{}'.format(k),self.ident,I=i)            
-        self.make_plots('q75_k{}'.format(k),self.ident,I=i)
-        self.make_plots('q100_k{}'.format(k),self.ident,I=i)
-        self.make_plots('fdu_k{}'.format(k),self.ident,I=i)
-        self.make_plots('fss_k{}'.format(k),self.ident,I=i)            
-        self.make_plots('fcc_k{}'.format(k),self.ident,I=i)
-        self.make_plots('fsu_k{}'.format(k),self.ident,I=i)            
-        self.make_plots('fna_k{}'.format(k),self.ident,I=i)            
+        names = 'q25','q50','q75','q100','fdu','fss','fcc','fsu','fna'
+        Is    = I1,I2,I3,I4,Ifdu,Ifss,Ifcc,Ifsu,Ifna
+        self.make_plots('AllTest.'+expid,ident,I=I)
+        for i,name in zip(Is,names):
+            if len(i[0])>0:
+                self.make_plots(name+'.'+expid,ident,I=i[0])
 
     def make_tau_kde_plots(self,expid,ident,I=None):
         """
@@ -74,7 +70,7 @@ class EVAL(object):
             names.append(name[1:])
             # i always want to visualize log(AOD+0.01)
             if name in self.__dict__:
-                orig = np.log(mxd.__dict__[name][I] + 0.01)
+                orig = np.log(self.__dict__[name][I] + 0.01)
             else:
                 orig = None
 
@@ -125,7 +121,7 @@ class EVAL(object):
         results = self.eval(I,noscale=True)
 
         # get the basewav tau
-        base_wav = mxd.AE_base_wav
+        base_wav = self.AE_base_wav
         for t in range(self.nTarget):
             tname = self.Target
             if 'Tau' in tname:
@@ -173,7 +169,7 @@ class EVAL(object):
             name = 'm'+names[t]
             # i always want to visualize log(AOD+0.01)
             if name in self.__dict__:
-                orig = np.log(mxd.__dict__[name][I] + 0.01)
+                orig = np.log(self.__dict__[name][I] + 0.01)
             else:
                 orig = None
 
@@ -218,8 +214,8 @@ class EVAL(object):
         # ------------------------------------------------
         AEbt = None
         AEbr = None
-        for t in range(mxd.nTarget):
-            tname = mxd.Target[t]
+        for t in range(self.nTarget):
+            tname = self.Target[t]
             if 'AEfitm' in tname:       
                 AEmt = targets[:,t]
                 AEmr = results[:,t]
@@ -247,7 +243,7 @@ class EVAL(object):
         names_   = []
         for i in range(nwav):
             names_.append('Tau'+wavs[i])
-            tau = mxd.__dict__['aTau'+wavs[i]][I]
+            tau = self.__dict__['aTau'+wavs[i]][I]
             targets_[:,i] = np.log(tau + 0.01)  # i always want to visualize log(aod)+0.01
             results_[:,i] = -1.*(AEmr*np.log(wav[i]) + AEbr)  # this is always fit with log(aod)+0.01, so results is already in correct form
 
@@ -258,7 +254,7 @@ class EVAL(object):
             name = 'mTau'+wavs[t]
             # i always want to visualize log(AOD+0.01)
             if name in self.__dict__:
-                orig = np.log(mxd.__dict__[name][I] + 0.01)
+                orig = np.log(self.__dict__[name][I] + 0.01)
                 wavm.append(t)
             else:
                 orig = None
@@ -294,7 +290,9 @@ class EVAL(object):
         self._plot2dKDE(AEmt,AEmr,y_label='NNR',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
         
         # error pdf
-        self.plot_error_pdfs(['AEm'],AEmt,AEmr,AEm,outdir,expid,ident)
+        AEmt.shape = AEmt.shape + (1,)
+        AEmr.shape = AEmr.shape + (1,)
+        self.plot_error_pdfs(['AEm'],AEmt,AEmr,[AEm],outdir,expid,ident)
 
         # if you tried to learn AEb, plot
         if AEbt is not None:
@@ -307,7 +305,9 @@ class EVAL(object):
             self._plot2dKDE(AEbt,AEbr,y_label='NNR',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
 
             # error pdf
-            self.plot_error_pdfs(['AEb'],AEbt,AEbr,AEb,outdir,expid,ident)
+            AEbt.shape = AEbt.shape + (1,)
+            AEbr.shape = AEbr.shape + (1,)
+            self.plot_error_pdfs(['AEb'],AEbt,AEbr,[AEb],outdir,expid,ident)
 
 #------
     def plot_error_pdfs(self,names,targets,results,original,outdir,expid,ident):
@@ -318,17 +318,17 @@ class EVAL(object):
         # calculate rmse
         nnrRMSE = self.rmse(results,targets)
         for t,name in enumerate(names):
-            orig = orignal[t]
+            orig = original[t]
             tar  = targets[:,t]
             if orig is not None:
                 origRMSE = self.rmse(orig,tar)
-                label2 'Standard RMSE={:1.2F}'.format(origRMSE)
+                label2 = 'Standard RMSE={:1.2F}'.format(origRMSE)
                 values2 = orig - tar
             else:
                 label2 = None
                 values2 = None
 
-            figfile = outdir+"/error_pdf-"+expid+"."+ident+"-"+name[1:]+'.png'
+            figfile = outdir+"/"+expid+"."+ident+"_error_pdf-"+name[1:]+'.png'
             title   = "Error " + name
             label   = 'NNR RMSE={:1.2F}'.format(nnrRMSE[t])
             values  = results[:,t] - tar
@@ -336,30 +336,30 @@ class EVAL(object):
 
 #------
     def plot_tau_kde(self,targets,results,original,outdir,expid,ident):
-    """
-    Generic wrapper for _plot2dKDE
-    """
-    # plot KDE of new predictions
-    for t in range(self.nTarget):
-        figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'-corrected.png'
-        title = "Log("+self.Target[t][1:]+"+0.01)- "+ident
-        self._plot2dKDE(targets[:,t],results[:,t],y_label='NNR',figfile=figfile,title=title)
-
-    # Plot KDE of uncorrected AOD
-    # loop through targets
-    # plot if there's a corresponding MODIS retrieval
-    for t in range(self.nTarget):
-        if original[t] is not None:
+        """
+        Generic wrapper for _plot2dKDE
+        """
+        # plot KDE of new predictions
+        for t in range(self.nTarget):
+            figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'-corrected.png'
             title = "Log("+self.Target[t][1:]+"+0.01)- "+ident
-            figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'.png'
-            self._plot2dKDE(targets[:,t],original[t],y_label='Original Retrieval',figfile=figfile,outfile=outfile)
+            self._plot2dKDE(targets[:,t],results[:,t],y_label='NNR',figfile=figfile,title=title)
 
-            # Scatter diagram for testing
-            # ---------------------------
-            figfile = outdir+"/"+expid+"."+ident+"_scat-"+self.Target[t][1:]+'.png'
-            self._plotScat(targets[:,t],original[t],y_values2=results[:,t],
-                           y_label='Satellite',figfile=figfile,
-                           label='Original',label2='Corrected')
+        # Plot KDE of uncorrected AOD
+        # loop through targets
+        # plot if there's a corresponding MODIS retrieval
+        for t in range(self.nTarget):
+            if original[t] is not None:
+                title = "Log("+self.Target[t][1:]+"+0.01)- "+ident
+                figfile = outdir+"/"+expid+"."+ident+"_kde-"+self.Target[t][1:]+'.png'
+                self._plot2dKDE(targets[:,t],original[t],y_label='Original Retrieval',figfile=figfile,title=title)
+
+                # Scatter diagram for testing
+                # ---------------------------
+                figfile = outdir+"/"+expid+"."+ident+"_scat-"+self.Target[t][1:]+'.png'
+                self._plotScat(targets[:,t],original[t],y_values2=results[:,t],
+                               y_label='Satellite',figfile=figfile,
+                               label='Original',label2='Corrected')
 
 #------
     def plot_ae_kde(self,targets,results,original,outdir,expid,ident):
@@ -403,7 +403,7 @@ class EVAL(object):
 
                 if orginial[t] is not None:
                     oo = np.exp(original[t]) # keep the + 0.01 to handle negatives in MODIS data
-                    AEo = = -1.*np.log(refo/oo)/np.log(refwav/wav)
+                    AEo = -1.*np.log(refo/oo)/np.log(refwav/wav)
 
                     figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name[3:]+'.png'
                     self._plot2dKDE(AEt,AEo,y_label='Standard',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
@@ -414,7 +414,7 @@ class EVAL(object):
 
         return names,AEt_,AEr_,AEo_
 #------
-    def _plot1DKDE(self,values,label,values2=None,label2=None,nbins=100,x_label='Difference',figfile=None,title=None):
+    def _plot1dKDE(self,values,label,values2=None,label2=None,nbins=100,x_label='Difference',figfile=None,title=None):
         """
         Plot a KDE estimate of the probability density function
         """
@@ -425,11 +425,11 @@ class EVAL(object):
 
         xcen = np.linspace(emin,emax,nbins+1)
         # get kde
-        kernel = status.gaussian_kde(values)
+        kernel = stats.gaussian_kde(values)
         data = kernel(xcen)
 
         if values2 is not None:
-            kernel = status.gaussian_kde(values2)
+            kernel = stats.gaussian_kde(values2)
             data2 = kernel(xcen)
 
         fig = plt.figure()
@@ -469,7 +469,7 @@ class EVAL(object):
         Z = np.reshape(Z,X.shape)
 
         if self.laod:
-            formatter = aodFormat(self.logoffset)
+            formatter = aodFormat()
         else:
             formatter = None
 
@@ -494,7 +494,7 @@ class EVAL(object):
             plt.show()
 
 #-----
-    def _plotScat(x_values,y_values,y_values2=None,
+    def _plotScat(self,x_values,y_values,y_values2=None,
                   x_label='AERONET', y_label='STANDARD',label=None,label2=None,
                   figfile=None,title=None,):
         """
@@ -546,9 +546,8 @@ class EVAL(object):
 # ---
     def get_Iquartiles(self,I=None,var=None):
 
-
+        Irange     = np.arange(self.nobs)
         if I is None:
-            Irange     = np.arange(self.nobs)
             I          = [Irange[self.iValid]]
 
         I1 = []
@@ -568,32 +567,33 @@ class EVAL(object):
             p75  = np.percentile(targets,75)
             p100 = targets.max()
 
-            I1.append(iTest[targets <= p25])
-            I2.append(iTest[(targets>p25) & (targets<=p50)])
-            I3.append(iTest[(targets>p50) & (targets<=p75)])
-            I4.append(iTest[(targets>p75)])
+            I1.append(Irange[iTest][targets <= p25])
+            I2.append(Irange[iTest][(targets>p25) & (targets<=p50)])
+            I3.append(Irange[iTest][(targets>p50) & (targets<=p75)])
+            I4.append(Irange[iTest][(targets>p75)])
 
-    return I1, I2, I3, I4
+        return I1, I2, I3, I4
 # ---
     def get_Ispecies(self,I=None):
 
+        Irange     = np.arange(self.nobs)
         if I is None:
-            Irange     = np.arange(self.nobs)
             I          = [Irange[self.iValid]]
 
         Ifdu = []
         Ifss = []
         Ifcc = []
         Ifsu = []
+        Ifna = []
         for iTest in I:
             fdu  = self.fdu[iTest].squeeze()
             fss  = self.fss[iTest].squeeze()
             fcc  = self.fcc[iTest].squeeze()
             fsu  = self.fsu[iTest].squeeze()
 
-            Ifdu.append(iTest[fdu >= 0.5])
-            Ifss.append(iTest[fss >= 0.5])
-            Ifcc.append(iTest[fcc >= 0.5])
-            Ifsu.append(iTest[fsu >= 0.5])
-            Ifna.append(iTest[(fdu<0.5) & (fss<0.5) & (fcc<0.5) & (fsu<0.5)])
+            Ifdu.append(Irange[iTest][fdu >= 0.5])
+            Ifss.append(Irange[iTest][fss >= 0.5])
+            Ifcc.append(Irange[iTest][fcc >= 0.5])
+            Ifsu.append(Irange[iTest][fsu >= 0.5])
+            Ifna.append(Irange[iTest][(fdu<0.5) & (fss<0.5) & (fcc<0.5) & (fsu<0.5)])
         return Ifdu, Ifss, Ifcc, Ifsu, Ifna

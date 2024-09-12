@@ -554,6 +554,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
                   outliers=3.,
                   laod=True,
+                  scale=False,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -588,6 +589,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.scale   = scale
         self.logoffset = logoffset
 
         DB_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
@@ -746,6 +748,7 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
                   Albedo=None,
                   outliers=3.,
                   laod=True,
+                  scale=False,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -782,6 +785,7 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
         self.laod = laod
         self.logoffset = logoffset
         self.algflag = algflag
+        self.scale = scale
 
         DB_DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 

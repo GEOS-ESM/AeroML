@@ -187,6 +187,32 @@ if __name__ == "__main__":
     if doTest:
         _testMODIS(deep)
 
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            deep_out = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
+                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                    algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
+
+            deep_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
+
+            deep_out.iTest[deep.outValid][deep.iTrain] = False
+            deep_out.expid = 'outlier.' + deep_out.expid
+
+            _testMODIS(deep_out)
+
         if combinations:
             SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
       

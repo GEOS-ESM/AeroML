@@ -324,12 +324,14 @@ class EVAL(object):
         """
         # calculate rmse
         nnrRMSE = self.rmse(results,targets)
+        nnrME   = self.me(results,targets)
         for t,name in enumerate(names):
             orig = original[t]
             tar  = targets[:,t]
             if orig is not None:
                 origRMSE = self.rmse(orig,tar)
-                label2 = 'Standard RMSE={:1.2F}'.format(origRMSE)
+                origME   = self.me(orig,tar)
+                label2 = 'Standard RMSE={:1.2F}, ME={:1.2F}'.format(origRMSE,origME)
                 values2 = orig - tar
             else:
                 label2 = None
@@ -337,7 +339,7 @@ class EVAL(object):
 
             figfile = outdir+"/"+expid+"."+ident+"_error_pdf-"+name+'.png'
             title   = "Error " + name
-            label   = 'NNR RMSE={:1.2F}'.format(nnrRMSE[t])
+            label   = 'NNR RMSE={:1.2F}, ME={:1.2F}'.format(nnrRMSE[t],nnrME[t])
             values  = results[:,t] - tar
             self._plot1dKDE(values,label,values2=values2,label2=label2,figfile=figfile,title=title)
 

@@ -5,7 +5,7 @@
 
 import os, sys
 from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                       import glob
 import argparse
 import numpy as np
@@ -104,6 +104,30 @@ if __name__ == "__main__":
     # it through balancing procedure
     minN = inputs['minN']
 
+    # ignore a species when doing species balancing step
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
+
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
+
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']
+
     # --------------
     # End of Inputs
     # -------------
@@ -129,7 +153,9 @@ if __name__ == "__main__":
     # Train/Test on full dataset
     # -------------------------------------
     if doTrain or doTest:
-        ocean = ABC_DB_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=1,outliers=outliers)
+        ocean = ABC_DB_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
+                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=outliers,
+                logoffset=logoffset,laod=laod,scale=scale)
                            
     # Initialize class for training/testing
     # ---------------------------------------------
@@ -144,7 +170,9 @@ if __name__ == "__main__":
                       lInput_nnr   = lInput_nnr,
                       f_balance    = f_balance,
                       q_balance    = q_balance,
-                      minN         = minN)
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
 
 
     # Do Training and Testing
@@ -154,7 +182,7 @@ if __name__ == "__main__":
 
     if doTest:
         _testMODIS(ocean)
-        SummaryPDFs(ocean,varnames=None)
+        
         if combinations:
             SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='rmse')
       

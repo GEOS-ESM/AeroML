@@ -58,161 +58,161 @@ VARNAMES    = {'cloud': 'MOD04 Cloud Fraction',
                'year': 'Year'}
 #--------------------------------------------------------------------------------------
 class SETUP(object):
-  def setupNN(self,retrieval,expid,
-                 nHidden=None,
-                 nHLayers=1,
-                 combinations=False,
-                 Input_nnr  = ['mRef470','mRef550','mRef660', 'mRef870',
-                                'mRef1200','mRef1600','mRef2100',
-                                'ScatteringAngle', 'GlintAngle',
-                                'AMF', 'SolarZenith',
-                                'cloud', 'albedo','fdu','fcc','fsu' ],
-                 Input_const = None,
-                 Target = ['aTau550',],
-                 K=None,
-                 lInput_nnr = None):
+    def setupNN(self,retrieval,expid,
+                     nHidden=None,
+                     nHLayers=1,
+                     combinations=False,
+                     Input_nnr  = ['mRef470','mRef550','mRef660', 'mRef870',
+                                    'mRef1200','mRef1600','mRef2100',
+                                    'ScatteringAngle', 'GlintAngle',
+                                    'AMF', 'SolarZenith',
+                                    'cloud', 'albedo','fdu','fcc','fsu' ],
+                     Input_const = None,
+                     Target = ['aTau550',],
+                     K=None,
+                     lInput_nnr = None):
 
-    """
-    lInput_nnr --- optional, give a list of the nnr input variables that you want to log transform
-    """
-    
-    self.retrieval = retrieval
-    # Create outdir if it doesn't exist
-    # ---------------------------------
-    self.outdir = "./{}/".format(expid)
-    if not os.path.exists(self.outdir):
-      os.makedirs(self.outdir)
+        """
+        lInput_nnr --- optional, give a list of the nnr input variables that you want to log transform
+        """
+        
+        self.retrieval = retrieval
+        # Create outdir if it doesn't exist
+        # ---------------------------------
+        self.outdir = "./{}/".format(expid)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
 
-    self.plotdir = self.outdir
+        self.plotdir = self.outdir
 
-    # save some inputs
-    # -----------------
-    self.expid   = expid
-    self.Target  = Target
-    self.nTarget = len(Target)
-    self.K       = K
-    self.nHidden = nHidden
-
-    # figure out if you need to calculate angstrom exponent
-    angstrom = False
-    angstrom_fit = False
-    for tname in Target:
-        if not angstrom:
-            if ('AE' in tname) and ('AEfit' not in tname):
-                angstrom = True
-        if not angstrom_fit:
-            if 'AEfit' in tname:
-                angstrom_fit = True
-    self.angstrom = angstrom
-    self.angstrom_fit = angstrom_fit
-
-    # if angstrom is being trained
-    # find the base wavelength
-    # -------------------------------------------------------
-    if angstrom:
-        # find base wavelength
-        for i,tname in enumerate(Target):
-            if 'Tau' in tname:
-                base_name = tname
-                base_wavs = tname.split('Tau')[-1]
-                base_wav = float(base_wavs)
-                base_tau = self.__dict__[tname]
-                base_wav_i = i
-
-        self.AE_base_wav = base_wav
-        self.AE_base_wav_i = base_wav_i
-
-    # if angstrom is being trained
-    # calculate angstrom with respect to the base wavelength
-    # -------------------------------------------------------
-    if angstrom:
-        # Calculate the angstrom exponent
-        # with respect to the base wavelength
-        for tname in Target:
-            if 'Tau' not in tname:
-                wavs = tname.split('AE')[-1]
-                wav  = float(wavs)
-                tau  = self.__dict__['aTau'+wavs]
-                AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
-                self.__dict__['aAE'+wavs] = AE
-
-    # if angstrom_fit is being trained
-    # calculate a linear fit to the log-log
-    # of wavelength and AOD 440-870
-    # -------------------------------------------------------
-    if angstrom_fit:
-        wavs = ['440','470','500','550','660','870']
-        wav  = np.array(wavs).astype(float)
-
-        # Calculate the angstrom exponent
-        # with a linear fit to log AOD
-        tau = []
-        for w in wavs:
-            tau.append(self.__dict__['aTau'+w])
-
-        tau = np.array(tau)
-        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)        
-        self.__dict__['aAEfitm'] = fit[0,:]
-        self.__dict__['aAEfitb'] = fit[1,:]
-
-
-    # Balance the dataset before splitting
-    # No aerosol type should make up more that 35% 
-    # of the total number of obs
-    # --------------------------------------
-    self.iValid = self.balance(int(self.nobs*0.35))
-    self.nValid = np.sum(self.iValid)
-
-    # Flatten Input_nnr into one list
-    # -------------------------------
-    input_nnr = flatten_list(Input_nnr)
-
-    # Create list of combinations
-    # ---------------------------
-    if combinations:
-      self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
-    else:
-      self.comblist = [input_nnr]
-          
-    # Initialize arrays to hold stats
-    # ------------------------------
-    self.nnr  = STATS(K,self.comblist,self.nTarget)
-    self.orig = STATS(K,self.comblist,self.nTarget)
-
-    # Initialize K-folding
-    # --------------------
-    if K is None:
-      self.iTest = ones([self.nobs]).astype(bool)
-      self.iTrain = self.iValid
-    else:
-      self.kfold(K=K)
-
-    # Create list of topologies
-    # -------------------------  
-    self.topology = []
-    if not combinations:
-      if self.nHidden is None:
-        self.nHidden  = len(input_nnr)
-      else:
+        # save some inputs
+        # -----------------
+        self.expid   = expid
+        self.Target  = Target
+        self.nTarget = len(Target)
+        self.K       = K
         self.nHidden = nHidden
 
-      self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
+        # figure out if you need to calculate angstrom exponent
+        angstrom = False
+        angstrom_fit = False
+        for tname in Target:
+            if not angstrom:
+                if ('AE' in tname) and ('AEfit' not in tname):
+                    angstrom = True
+            if not angstrom_fit:
+                if 'AEfit' in tname:
+                    angstrom_fit = True
+        self.angstrom = angstrom
+        self.angstrom_fit = angstrom_fit
 
-    else:
-      for c,Input in enumerate(self.comblist):
-        if nHidden is None:
-          self.nHidden  = len(Input)
+        # if angstrom is being trained
+        # find the base wavelength
+        # -------------------------------------------------------
+        if angstrom:
+            # find base wavelength
+            for i,tname in enumerate(Target):
+                if 'Tau' in tname:
+                    base_name = tname
+                    base_wavs = tname.split('Tau')[-1]
+                    base_wav = float(base_wavs)
+                    base_tau = self.__dict__[tname]
+                    base_wav_i = i
+
+            self.AE_base_wav = base_wav
+            self.AE_base_wav_i = base_wav_i
+
+        # if angstrom is being trained
+        # calculate angstrom with respect to the base wavelength
+        # -------------------------------------------------------
+        if angstrom:
+            # Calculate the angstrom exponent
+            # with respect to the base wavelength
+            for tname in Target:
+                if 'Tau' not in tname:
+                    wavs = tname.split('AE')[-1]
+                    wav  = float(wavs)
+                    tau  = self.__dict__['aTau'+wavs]
+                    AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
+                    self.__dict__['aAE'+wavs] = AE
+
+        # if angstrom_fit is being trained
+        # calculate a linear fit to the log-log
+        # of wavelength and AOD 440-870
+        # -------------------------------------------------------
+        if angstrom_fit:
+            wavs = ['440','470','500','550','660','870']
+            wav  = np.array(wavs).astype(float)
+
+            # Calculate the angstrom exponent
+            # with a linear fit to log AOD
+            tau = []
+            for w in wavs:
+                tau.append(self.__dict__['aTau'+w])
+
+            tau = np.array(tau)
+            fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)        
+            self.__dict__['aAEfitm'] = fit[0,:]
+            self.__dict__['aAEfitb'] = fit[1,:]
+
+
+        # Balance the dataset before splitting
+        # No aerosol type should make up more that 35% 
+        # of the total number of obs
+        # --------------------------------------
+        self.iValid = self.balance(int(self.nobs*0.35))
+        self.nValid = np.sum(self.iValid)
+
+        # Flatten Input_nnr into one list
+        # -------------------------------
+        input_nnr = flatten_list(Input_nnr)
+
+        # Create list of combinations
+        # ---------------------------
+        if combinations:
+            self.comblist, self.combgroups = get_combinations(Input_nnr,Input_const)
         else:
-          self.nHidden = nHidden
+            self.comblist = [input_nnr]
+              
+        # Initialize arrays to hold stats
+        # ------------------------------
+        self.nnr  = STATS(K,self.comblist,self.nTarget)
+        self.orig = STATS(K,self.comblist,self.nTarget)
 
-        self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
+        # Initialize K-folding
+        # --------------------
+        if K is None:
+            self.iTest = ones([self.nobs]).astype(bool)
+            self.iTrain = self.iValid
+        else:
+            self.kfold(K=K)
 
-    self.combinations = combinations
+        # Create list of topologies
+        # -------------------------  
+        self.topology = []
+        if not combinations:
+            if self.nHidden is None:
+                self.nHidden  = len(input_nnr)
+            else:
+                self.nHidden = nHidden
 
-    # optional log transform input variables log
-    if lInput_nnr is not None:
-      for vname in lInput_nnr:
-        self.__dict__['l'+vname] = np.log(self.__dict__[vname])
+            self.topology.append((len(input_nnr),) + (self.nHidden,)*nHLayers + (len(Target),))
+
+        else:
+            for c,Input in enumerate(self.comblist):
+                if nHidden is None:
+                    self.nHidden  = len(Input)
+                else:
+                    self.nHidden = nHidden
+
+                self.topology.append((len(Input),) + (self.nHidden,)*nHLayers + (len(Target),))
+
+        self.combinations = combinations
+
+        # optional log transform input variables log
+        if lInput_nnr is not None:
+            for vname in lInput_nnr:
+                self.__dict__['l'+vname] = np.log(self.__dict__[vname])
 
 #----------------------------------------------------------------------------    
 class ABC(object):

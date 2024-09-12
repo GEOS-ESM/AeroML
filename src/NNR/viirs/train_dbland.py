@@ -5,7 +5,7 @@
 
 import os, sys
 from   pyabc.abc_viirs         import ABC_DB_Land, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6_aux           import SummarizeCombinations
 import argparse
 from   glob                    import glob
 

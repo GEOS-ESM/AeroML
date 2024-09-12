@@ -282,17 +282,17 @@ class ABC(object):
         # Define wind speed dependent ocean albedo
         # ----------------------------------------
         if Albedo is not None:
-          for albedo in Albedo:
-            if albedo == 'CoxMunkLUT':
-              self.getCoxMunk(coxmunk_lut) 
-              self.giantList.append(albedo)    
-            elif albedo == 'MCD43C1':
-              self.setBRDF()     
-            elif 'CxAlbedo' in albedo :
-              self.setCoxMunkBRF(albedo)
-            else:
-              self.__dict__[albedo] = squeeze(load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
-              self.giantList.append(albedo)
+            for albedo in Albedo:
+                if albedo == 'CoxMunkLUT':
+                    self.getCoxMunk(coxmunk_lut) 
+                    self.giantList.append(albedo)    
+                elif albedo == 'MCD43C1':
+                    self.setBRDF()     
+                elif 'CxAlbedo' in albedo :
+                    self.setCoxMunkBRF(albedo)
+                else:
+                    self.__dict__[albedo] = squeeze(load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
+                    self.giantList.append(albedo)
 
     def setSpec(self):
         # Read in Aerosol Fractional Composition
@@ -353,8 +353,8 @@ class ABC(object):
         # -------------
         names = ('NDVI','EVI','NIRref')
         for name in names:
-          self.__dict__[name] = load(self.fnameRoot + "_NDVI.npz")[name]
-          self.giantList.append(name)
+            self.__dict__[name] = load(self.fnameRoot + "_NDVI.npz")[name]
+            self.giantList.append(name)
 
     def outlierRemoval(self,outliers):
 
@@ -392,13 +392,13 @@ class ABC(object):
 
     def addFilter(self,aFilter):
         if aFilter is not None:
-          filters = []
-          for f in aFilter:
-            filters.append(self.__dict__[f]>0)
-            
-          oiValid = reduce(lambda x,y: x&y,filters)
-          self.iValid = self.iValid & oiValid
-          self.nValid = np.sum(self.iValid)
+            filters = []
+            for f in aFilter:
+                filters.append(self.__dict__[f]>0)
+                
+            oiValid = reduce(lambda x,y: x&y,filters)
+            self.iValid = self.iValid & oiValid
+            self.nValid = np.sum(self.iValid)
 
 #---------------------------------------------------------------------------- 
 class ABC_Ocean (OCEAN,NN,SETUP,ABC):
@@ -1219,235 +1219,234 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
 class STATS(object):
 
   def __init__ (self,K,comblist,nTarget):
-    c = max([len(comblist),1])
-    if K is None:
-      k = 1
-    else:
-      k = K
+      c = max([len(comblist),1])
+      if K is None:
+          k = 1
+      else:
+          k = K
 
-    self.slope     = np.ones([k,c,nTarget])*np.nan
-    self.intercept = np.ones([k,c,nTarget])*np.nan
-    self.R         = np.ones([k,c,nTarget])*np.nan
-    self.rmse      = np.ones([k,c,nTarget])*np.nan
-    self.mae       = np.ones([k,c,nTarget])*np.nan
-    self.me        = np.ones([k,c,nTarget])*np.nan
+      self.slope     = np.ones([k,c,nTarget])*np.nan
+      self.intercept = np.ones([k,c,nTarget])*np.nan
+      self.R         = np.ones([k,c,nTarget])*np.nan
+      self.rmse      = np.ones([k,c,nTarget])*np.nan
+      self.mae       = np.ones([k,c,nTarget])*np.nan
+      self.me        = np.ones([k,c,nTarget])*np.nan
 
 #---------------------------------------------------------------------
 def _train(mxd,expid,c):
 
-  ident  = mxd.ident
-  outdir = mxd.outdir
+    ident  = mxd.ident
+    outdir = mxd.outdir
 
-  nHidden  = mxd.nHidden
-  topology = mxd.topology[c]
+    nHidden  = mxd.nHidden
+    topology = mxd.topology[c]
 
-  Input    = mxd.comblist[c]
-  Target   = mxd.Target
-  
-  print("-"*80)
-  print("--> nHidden = ", nHidden)
-  print("-->  Inputs = ", Input)
-  
-  n = cpu_count()
-  kwargs = {'nproc' : n}
-  if mxd.K is None:
-    mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-    mxd.savenet(outdir+"/"+expid+'_Tau.net')    
-  else:
-    k = 1
-    for iTrain, iTest in mxd.kf.split(np.arange(mxd.nValid)):
-      I = arange(mxd.nobs)
-      iValid = I[mxd.iValid]
-      mxd.iTrain = iValid[iTrain]
-      mxd.iTest  = iValid[iTest]
+    Input    = mxd.comblist[c]
+    Target   = mxd.Target
+      
+    print("-"*80)
+    print("--> nHidden = ", nHidden)
+    print("-->  Inputs = ", Input)
+      
+    n = cpu_count()
+    kwargs = {'nproc' : n}
+    if mxd.K is None:
+        mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
+        mxd.savenet(outdir+"/"+expid+'_Tau.net')    
+    else:
+        k = 1
+        for iTrain, iTest in mxd.kf.split(np.arange(mxd.nValid)):
+            I = arange(mxd.nobs)
+            iValid = I[mxd.iValid]
+            mxd.iTrain = iValid[iTrain]
+            mxd.iTest  = iValid[iTest]
 
-      mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-      mxd.savenet(outdir+"/"+expid+'.k={}_Tau.net'.format(str(k)))
-      k = k + 1
+            mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
+            mxd.savenet(outdir+"/"+expid+'.k={}_Tau.net'.format(str(k)))
+            k = k + 1
 #--------------------------------------------------------------------------------------
 
 def _test(mxd,expid,c,plotting=True):
-  ident  = mxd.ident
-  outdir = mxd.outdir    
-  if mxd.K is None:
-    if mxd.combinations:
-      inputs = expid.split('.')
-      found = False
-      for invars in itertools.permutations(inputs):
-        try: 
-          netFile = outdir+"/"+".".join(invars)+'_Tau.net'
-          mxd.loadnet(netFile)
-          found = True
-          break
-        except:
-          pass
-        if found: break
+    ident  = mxd.ident
+    outdir = mxd.outdir    
+    if mxd.K is None:
+        if mxd.combinations:
+            inputs = expid.split('.')
+            found = False
+            for invars in itertools.permutations(inputs):
+                try: 
+                    netFile = outdir+"/"+".".join(invars)+'_Tau.net'
+                    mxd.loadnet(netFile)
+                    found = True
+                    break
+                except:
+                    pass
 
-      if not found:
-        print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
-        raise
-    else:
-      invars = mxd.comblist[0]
-      netFile = outdir+"/"+".".join(invars)+'_Tau.net'
-
-    mxd.net = mxd.loadnet(netFile)
-    mxd.Input = mxd.comblist[c]
-    TestStats(mxd,mxd.K,c)
-    if plotting: 
-        if mxd.angstrom:
-            make_plots_angstrom(mxd,expid,ident,I=mxd.iTest)
-        elif mxd.angstrom_fit:
-            make_plots_angstrom_fit(mxd,expid,ident,I=mxd.iTest)
+            if not found:
+                raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))
+                
         else:
-            make_plots(mxd,expid,ident,I=mxd.iTest)
-  else:
-    k = 1
-    for iTrain, iTest in mxd.kf.split(np.arange(self.nValid)):
-      I = arange(mxd.nobs)
-      iValid = I[mxd.iValid]
-      mxd.iTrain = iValid[iTrain]
-      mxd.iTest  = iValid[iTest]
+          invars = mxd.comblist[0]
+          netFile = outdir+"/"+".".join(invars)+'_Tau.net'
 
-      if mxd.combinations:
-        inputs = expid.split('.')
-        found = False
-        for invars in itertools.permutations(inputs):
-          try: 
-            netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
-            mxd.loadnet(netFile)
-            found = True
-            print('found file',netFile)
-            break
-          except:
-            pass
+        mxd.net = mxd.loadnet(netFile)
+        mxd.Input = mxd.comblist[c]
+        TestStats(mxd,mxd.K,c)
+        if plotting: 
+            if mxd.angstrom:
+                make_plots_angstrom(mxd,expid,ident,I=mxd.iTest)
+            elif mxd.angstrom_fit:
+                make_plots_angstrom_fit(mxd,expid,ident,I=mxd.iTest)
+            else:
+                make_plots(mxd,expid,ident,I=mxd.iTest)
+    else:
+        k = 1
+        for iTrain, iTest in mxd.kf.split(np.arange(self.nValid)):
+            I = arange(mxd.nobs)
+            iValid = I[mxd.iValid]
+            mxd.iTrain = iValid[iTrain]
+            mxd.iTest  = iValid[iTest]
 
-        if not found:
-          print('{} not found.  Need to train this combinatin of inputs'.format(netFile))
-          raise
-      else:
-        invars = mxd.comblist[0]
-        netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
+            if mxd.combinations:
+                inputs = expid.split('.')
+                found = False
+                for invars in itertools.permutations(inputs):
+                    try: 
+                        netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
+                        mxd.loadnet(netFile)
+                        found = True
+                        print('found file',netFile)
+                        break
+                    except:
+                        pass
+
+                if not found:
+                    raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))
+                    
+            else:
+                invars = mxd.comblist[0]
+                netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
 
 
-      mxd.net = mxd.loadnet(netFile)
-      mxd.Input = mxd.comblist[c]      
-      TestStats(mxd,k-1,c)
-      if plotting: 
-          if mxd.angstrom:
-              make_plots_angstrom(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
-          elif mxd.angstrom_ft:
-              make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest,k=k)
-          else:
-              make_plots(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
-      k = k + 1    
+              mxd.net = mxd.loadnet(netFile)
+              mxd.Input = mxd.comblist[c]      
+              TestStats(mxd,k-1,c)
+              if plotting: 
+                  if mxd.angstrom:
+                      make_plots_angstrom(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
+                  elif mxd.angstrom_ft:
+                      make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest,k=k)
+                  else:
+                      make_plots(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
+            k = k + 1    
 
 #---------------------------------------------------------------------
 def _trainMODIS(mxdx):
 
-  if not mxdx.combinations:
-    Input = mxdx.comblist[0]
-    _train(mxdx,'.'.join(Input),0)
-  else:
-    for c,Input in enumerate(mxdx.comblist):
-      _train(mxdx,'.'.join(Input),c)
+    if not mxdx.combinations:
+        Input = mxdx.comblist[0]
+        _train(mxdx,'.'.join(Input),0)
+    else:
+        for c,Input in enumerate(mxdx.comblist):
+            _train(mxdx,'.'.join(Input),c)
 
 # -------------------------------------------------------------------
 def _testMODIS(mxdx):
 
-  if not mxdx.combinations:
-    _test(mxdx,mxdx.expid,0,plotting=True)
-  else:
-    for c,Input in enumerate(mxdx.comblist):
-      _test(mxdx,'.'.join(Input),c,plotting=False)
+    if not mxdx.combinations:
+        _test(mxdx,mxdx.expid,0,plotting=True)
+    else:
+        for c,Input in enumerate(mxdx.comblist):
+            _test(mxdx,'.'.join(Input),c,plotting=False)
 
-      # because plotting is false, Get AE of MODIS
-      # it is other wise gotten within the plotting part
-      nwav = 6
-      wavs = ['440','470','500','550','660','870']
-      wav  = np.array(wavs).astype(float)
-      wavm = []
-      for t in range(nwav):
-          name = 'mTau'+wavs[t]
-          if name in mxdx.__dict__:
-              wavm.append(t)
+            # because plotting is false, Get AE of MODIS
+            # it is other wise gotten within the plotting part
+            nwav = 6
+            wavs = ['440','470','500','550','660','870']
+            wav  = np.array(wavs).astype(float)
+            wavm = []
+            for t in range(nwav):
+                name = 'mTau'+wavs[t]
+                if name in mxdx.__dict__:
+                    wavm.append(t)
 
-      if mxdx.K is None:
-          I = mxdx.iTest
-          mdata = []
-          fwav  = []
-          for t in wavm:
-              name = 'mTau'+wavs[t]
-              fwav.append(wav[t])
-              mdata.append(mxdx.__dict__[name][I])
-          mdata = np.array(mdata)
-          fwav  = np.array(fwav)
-          fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-          AEm = fit[0,:]
-          AEb = fit[1,:]
-          mxdx.mAEfitm = np.ones(len(mxdx.mTau550))*-999
-          mxdx.mAEfitb = np.ones(len(mxdx.mTau550))*-999
-          mxdx.mAEfitm[I] = AEm
-          mxdx.mAEfitb[I] = AEb
-      else:
-          k = 1
-          for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
-              I = iTest
+              if mxdx.K is None:
+                  I = mxdx.iTest
+                  mdata = []
+                  fwav  = []
+                  for t in wavm:
+                      name = 'mTau'+wavs[t]
+                      fwav.append(wav[t])
+                      mdata.append(mxdx.__dict__[name][I])
+                  mdata = np.array(mdata)
+                  fwav  = np.array(fwav)
+                  fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
+                  AEm = fit[0,:]
+                  AEb = fit[1,:]
+                  mxdx.mAEfitm = np.ones(len(mxdx.mTau550))*-999
+                  mxdx.mAEfitb = np.ones(len(mxdx.mTau550))*-999
+                  mxdx.mAEfitm[I] = AEm
+                  mxdx.mAEfitb[I] = AEb
+        else:
+            k = 1
+            for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
+                I = iTest
 
-              mdata = []
-              fwav  = []
-              for t in wavm:
-                  name = 'mTau'+wavs[t]
-                  fwav.append(wav[t])
-                  mdata.append(mxdx.__dict__[name][I])
-              mdata = np.array(mdata)
-              fwav  = np.array(fwav)
-              fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-              AEm = fit[0,:]
-              AEb = fit[1,:]
+                mdata = []
+                fwav  = []
+                for t in wavm:
+                    name = 'mTau'+wavs[t]
+                    fwav.append(wav[t])
+                    mdata.append(mxdx.__dict__[name][I])
+                mdata = np.array(mdata)
+                fwav  = np.array(fwav)
+                fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
+                AEm = fit[0,:]
+                AEb = fit[1,:]
 
-              mxdx.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-              mxdx.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-              mxdx.__dict__['mAEfitm_{}'.format(k)][I]= AEm
-              mxdx.__dict__['mAEfitb_{}'.format(k)][I]= AEb
+                mxdx.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+                mxdx.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
+                mxdx.__dict__['mAEfitm_{}'.format(k)][I]= AEm
+                mxdx.__dict__['mAEfitb_{}'.format(k)][I]= AEb
 
-              k += 1        
+                k += 1        
 
 #---------------------------------------------------------------------
 def get_combinations(Input_nnr,Input_const):
-  comblist   = []
-  combgroups = []
-  for n in arange(len(Input_nnr)):
-    for invars in itertools.combinations(Input_nnr,n+1):        
-      b = ()
-      for c in invars:
-        if type(c) is list:
-          b = b + tuple(c)
-        else:
-          b = b + (c,)
-      #don't do both kinds of abledo together
-      if not (('BRF' in b) and ('albedo' in b)):
-        if Input_const is not None:
-          comblist.append(tuple(Input_const)+b)
-          combgroups.append((Input_const,)+invars)
-        else:
-          comblist.append(b)
-          combgroups.append(invars)
+    comblist   = []
+    combgroups = []
+    for n in arange(len(Input_nnr)):
+        for invars in itertools.combinations(Input_nnr,n+1):        
+            b = ()
+            for c in invars:
+                if type(c) is list:
+                    b = b + tuple(c)
+                else:
+                    b = b + (c,)
+            #don't do both kinds of abledo together
+            if not (('BRF' in b) and ('albedo' in b)):
+                if Input_const is not None:
+                    comblist.append(tuple(Input_const)+b)
+                    combgroups.append((Input_const,)+invars)
+                else:
+                    comblist.append(b)
+                    combgroups.append(invars)
 
-  if Input_const is not None:
-    comblist.insert(0,tuple(Input_const))
-    combgroups.insert(0,(Input_const,))
+    if Input_const is not None:
+      comblist.insert(0,tuple(Input_const))
+      combgroups.insert(0,(Input_const,))
 
-  return comblist,combgroups
+    return comblist,combgroups
 #---------------------------------------------------------------------
 def flatten_list(Input_nnr):
-  Input = ()
-  for i in Input_nnr:
-    if type(i) is list:
-      Input = Input + tuple(i)
-    else:
-      Input = Input + (i,)
+    Input = ()
+    for i in Input_nnr:
+        if type(i) is list:
+            Input = Input + tuple(i)
+        else:
+            Input = Input + (i,)
 
-  return list(Input)
+    return list(Input)
         
 #------------------------------------------------------------------
   

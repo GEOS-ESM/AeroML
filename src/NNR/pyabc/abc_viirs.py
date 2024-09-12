@@ -416,13 +416,13 @@ class ABC(object):
         # # Outlier removal based on log-transformed AOD
         # # --------------------------------------------
         if outliers > 0.:
-            d = np.log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
+            d = np.log(self.mTau550[self.iValid]+self.logoffset) - np.log(self.aTau550[self.iValid]+self.logoffset)
             if self.verbose>0:
                 print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,np.std(d),d.size))
             for iter in range(3):
                 iValid = (abs(d)<outliers*np.std(d))
                 self.iValid[self.iValid] = iValid
-                d = np.log(self.mTau550[self.iValid]+self.logoffset) - log(self.aTau550[self.iValid]+self.logoffset)
+                d = np.log(self.mTau550[self.iValid]+self.logoffset) - np.log(self.aTau550[self.iValid]+self.logoffset)
                 if self.verbose>0:
                     print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,np.std(d),d.size))
               
@@ -548,7 +548,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
         self.setYear()
 
 #----------------------------------------------------------------------------
-class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
+class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC,EVAL):
 
     def __init__ (self,fname,
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
@@ -652,7 +652,7 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC):
         self.setYear()
 #----------------------------------------------------------------------------    
 
-class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
+class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   Albedo=None,
@@ -742,7 +742,7 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------
 
-class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC):
+class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   Albedo=None,

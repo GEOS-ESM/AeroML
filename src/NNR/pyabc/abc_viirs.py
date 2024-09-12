@@ -634,15 +634,23 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC,EVAL):
         # does not retrieve.  However, there are a few cases (~200) where this does not happen.
         # the GlingAngle is very close to 40, greater than 38.  Not sure why these get through.
 
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)
         self.iValid = np.ones(self.lon.shape).astype(bool)
 
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0 :
+            self.outlierRemoval(outliers)       
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)
+            
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
         self.angleTranform()
@@ -828,14 +836,23 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC,EVAL):
         # ------------------------------
         self.addFilter(aFilter)
 
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)
         self.iValid = np.ones(self.lon.shape).astype(bool)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0 :
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)
+
 
 
         # Angle transforms: for NN work we work with cosine of angles
@@ -930,15 +947,22 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
         # ------------------------------
         self.addFilter(aFilter)
         
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
         self.iValid = np.ones(self.lon.shape).astype(bool)        
 
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0 :
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------

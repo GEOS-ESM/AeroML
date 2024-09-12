@@ -207,7 +207,10 @@ class NN(object):
 
         if self.scaler is not None:
             if not noscale:
-                targets = self.scaler.transform(targets)
+                if self.nTarget == 1:
+                    targets = self.scaler.transform(targets.reshape(-1,1)).squeeze()
+                else:
+                    targets = self.scaler.transform(targets)
 
         return targets
  

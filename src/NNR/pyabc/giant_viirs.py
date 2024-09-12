@@ -363,7 +363,7 @@ class GIANT(object):
     if "pixel_elevation" in self.giantList:
         self.pixel_elevation = self.pixel_elevation*1e-4
 #--
-  def spc_target_balance(self,minN=None,frac=0.50):
+  def spc_target_balance(self,minN=None,frac=0.50,fignore=[],nbins=6):
     """
     Retrun indices of observations following a species and target AOD balancing.
     We want to balance both according to species, and according to the value of the target AOD.
@@ -372,6 +372,8 @@ class GIANT(object):
 
     minN = optional variable, if you want to set the minimum number that a size bin of species type can have
     frac = fraction that defines whether a species dominates
+    fignore = list of species to ignore in species balance.  for land, we can ignore sea salt.
+    nbins = number of size bins to use
     """
     
     np.random.seed(32768) # so that we get the same permutation
@@ -381,6 +383,7 @@ class GIANT(object):
     I = np.zeros(nobs).astype(bool)    
     nspc = 5
     Ispc = np.zeros([nobs,nspc]).astype(bool)
+    spclist = ['fdu','fss','fcc','fsu','fna']
     for ispc,f in enumerate([self.fdu,self.fss,self.fcc,self.fsu]):
 
       J = f>frac                      # all obs for which species dominate
@@ -395,10 +398,15 @@ class GIANT(object):
     Ispc[:,-1] = J
 
     # get aTau distributions
-    tau = np.log(self.aTau550+0.01)
+    tau = np.log(self.aTau550+self.logoffset)
     tmin,tmax = tau.min(),tau.max()
-    nbins = 6
-    bine = np.linspace(tmin,tmax,nbins+1)
+#    q = np.linspace(0,1,nbins+1)
+#    bine = np.quantile(tau,q)
+    t15 = np.quantile(tau,0.15)
+    t85 = np.quantile(tau,0.85)
+    bine = np.linspace(t15,t85,nbins-1)
+    bine = np.append(tmin,bine)
+    bine = np.append(bine,tmax)
     Ibin = np.zeros([nobs,nspc,nbins]).astype(bool)
     nbin = np.zeros([nspc,nbins]).astype(int)
     for ispc in range(nspc):
@@ -424,10 +432,15 @@ class GIANT(object):
         if minN is None:
             n = nbin[ispc,nbin[ispc,:]>0].min()
         else:
-            n = int(minN)
+            n = max([int(minN),nbin[ispc,nbin[ispc,:]>0].min()])
         # reduce all the other bins down to this number
+        # leave out tails
         for ibin in range(nbins):
-            if nbin[ispc,ibin] > n:
+            if (nbin[ispc,ibin] <= n) or (ibin == 0) or (ibin == nbins-1):
+                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
+                Ibin_balance[k,ispc,ibin] = True
+                nbin_balance[ispc,ibin] = nbin[ispc,ibin]                
+            else:
                 k = np.arange(nobs)[Ibin[:,ispc,ibin]]
                 # Get a random permutation of the obs in this bin
                 P = np.random.permutation(nbin[ispc,ibin])
@@ -435,10 +448,6 @@ class GIANT(object):
                 k = k[P[0:n]]
                 Ibin_balance[k,ispc,ibin] = True
                 nbin_balance[ispc,ibin] = n
-            else:
-                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
-                Ibin_balance[k,ispc,ibin] = True
-                nbin_balance[ispc,ibin] = nbin[ispc,ibin]
 
     # Now balance across the species
     # reduce number of obs in the aTau bins evenly
@@ -446,11 +455,18 @@ class GIANT(object):
     # not going to be exact here, but have them all the within 25%
     # trying to keep as many obs as possible
     nbin_spc = nbin_balance.sum(axis=1)
-    nspc_min = nbin_spc.min()
+    usespc = []
+    for spcname in spclist:
+        if spcname in fignore:
+            usespc.append(False)
+        else:
+            usespc.append(True)
+
+    nspc_min = nbin_spc[usespc].min()
     nspc_frac = nbin_spc/nspc_min
     close = 1.25
     for ispc in range(nspc):
-        if nspc_frac[ispc] > close:
+        if (nspc_frac[ispc] > close) and (spclist[ispc] not in fignore):
             # spread reduction evenly among number of bins
             nbalance = int(nspc_min*close/nbins)
             for ibin in range(nbins):

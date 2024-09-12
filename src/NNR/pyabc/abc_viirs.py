@@ -117,7 +117,10 @@ class SETUP(object):
         if self.scale:
             targets = self.getTargets(self.iValid) 
             self.scaler = StandardScaler()
-            self.scaler.fit(targets)
+            if self.nTarget == 1:
+                self.scaler.fit(targets.reshape(-1,1))
+            else:
+                self.scaler.fit(targets)
 
         # Balance the dataset before splitting
         # No aerosol type should make up more that 35% 
@@ -186,11 +189,13 @@ class SETUP(object):
         # optional log transform input variables log
         if lInput_nnr is not None:
             for vname in lInput_nnr:
-                if 'Tau' in vname:
-                    self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
-                else:
-                    self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
-                
+#                self.__dict__['l'+vname] = np.log(self.__dict__[vname]+0.01)
+                self.__dict__['scaler_l'+vname] = StandardScaler()
+                feature = self.__dict__[vname]
+                self.__dict__['scaler_l'+vname].fit(feature.reshape(-1,1))
+                self.__dict__['l'+vname] = self.__dict__['scaler_l'+vname].transform(feature.reshape(-1,1)).squeeze()
+
+
 # ---
     def get_aAE(self):
         """ 

@@ -186,7 +186,6 @@ if __name__ == "__main__":
 
     if doTest:
         _testMODIS(deep)
-        SummaryPDFs(deep,varnames=['mRef670','mSre488'])
 
         if combinations:
             SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')

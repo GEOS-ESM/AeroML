@@ -6,7 +6,6 @@
 """
 
 import os, sys
-from   numpy                import  c_ as cat
 import numpy                as      np
 from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN, DB_DEEP
 from   .nn                   import  NN

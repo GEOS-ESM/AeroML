@@ -73,6 +73,7 @@ class SETUP(object):
         """
         
         self.retrieval = retrieval
+        self.lInput_nnr = lInput_nnr
         # Create outdir if it doesn't exist
         # ---------------------------------
         self.outdir = "./{}/".format(expid)
@@ -89,7 +90,10 @@ class SETUP(object):
         self.K       = K
         self.nHidden = nHidden
 
-        # figure out if you need to calculate angstrom exponent
+        # figure out if you need to calculate
+        # the angstrom exponent at each wavelength
+        # of the angstrom fit for all wavelengths
+        # ---------------------------------------        
         angstrom = False
         angstrom_fit = False
         for tname in Target:
@@ -104,53 +108,19 @@ class SETUP(object):
 
         # if angstrom is being trained
         # find the base wavelength
-        # -------------------------------------------------------
-        if angstrom:
-            # find base wavelength
-            for i,tname in enumerate(Target):
-                if 'Tau' in tname:
-                    base_name = tname
-                    base_wavs = tname.split('Tau')[-1]
-                    base_wav = float(base_wavs)
-                    base_tau = self.__dict__[tname]
-                    base_wav_i = i
-
-            self.AE_base_wav = base_wav
-            self.AE_base_wav_i = base_wav_i
-
-        # if angstrom is being trained
         # calculate angstrom with respect to the base wavelength
-        # -------------------------------------------------------
+        # -----------------------------------------------------
         if angstrom:
-            # Calculate the angstrom exponent
-            # with respect to the base wavelength
-            for tname in Target:
-                if 'Tau' not in tname:
-                    wavs = tname.split('AE')[-1]
-                    wav  = float(wavs)
-                    tau  = self.__dict__['aTau'+wavs]
-                    AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
-                    self.__dict__['aAE'+wavs] = AE
+            self.get_aAE()
+            self.get_mAE()
 
         # if angstrom_fit is being trained
         # calculate a linear fit to the log-log
         # of wavelength and AOD 440-870
         # -------------------------------------------------------
         if angstrom_fit:
-            wavs = ['440','470','500','550','660','870']
-            wav  = np.array(wavs).astype(float)
-
-            # Calculate the angstrom exponent
-            # with a linear fit to log AOD
-            tau = []
-            for w in wavs:
-                tau.append(self.__dict__['aTau'+w])
-
-            tau = np.array(tau)
-            fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)        
-            self.__dict__['aAEfitm'] = fit[0,:]
-            self.__dict__['aAEfitb'] = fit[1,:]
-
+            self.get_aAEfit()
+            self.get_mAEfit()
 
         # Balance the dataset before splitting
         # No aerosol type should make up more that 35% 
@@ -209,6 +179,97 @@ class SETUP(object):
         if lInput_nnr is not None:
             for vname in lInput_nnr:
                 self.__dict__['l'+vname] = np.log(self.__dict__[vname])
+
+# ---
+    def get_aAE(self):
+        """
+        if angstrom is being trained
+        find the base wavelength
+        """
+        # find base wavelength
+        for i,tname in enumerate(self.Target):
+            if 'Tau' in tname:
+                base_name = tname
+                base_wavs = tname.split('Tau')[-1]
+                base_wav = float(base_wavs)
+                base_tau = self.__dict__[tname]
+                base_wav_i = i
+
+        self.AE_base_wav = base_wav
+        self.AE_base_wav_i = base_wav_i
+
+        # Calculate the angstrom exponent
+        # with respect to the base wavelength
+        for tname in self.Target:
+            if 'Tau' not in tname:
+                wavs = tname.split('AE')[-1]
+                wav  = float(wavs)
+                tau  = self.__dict__['aTau'+wavs]
+                AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
+                self.__dict__['aAE'+wavs] = AE
+# ---
+    def get_mAE(self):
+        """
+        get the AE from original retrieval
+        """
+        base_wav = self.AE_base_wav
+        base_wav_i = self.AE_base_wav_i
+
+        # Calculate the angstrom exponent
+        # with respect to the base wavelength
+        for tname in self.Target:
+            if 'Tau' not in tname:
+                wavs = tname.split('AE')[-1]
+                wav  = float(wavs)
+                if 'mTau'+wavs in self.__dict__:
+                    tau  = self.__dict__['mTau'+wavs]
+                    AE = -1.*np.log(tau/base_tau)/np.log(wav/base_wav)
+                    self.__dict__['mAE'+wavs] = AE
+# ---
+    def get_aAEfit(self):
+        """
+        calculate a linear fit to the log-log
+        of wavelength and AOD 440-870
+        """
+
+        wavs = ['440','470','500','550','660','870']
+        wav  = np.array(wavs).astype(float)
+
+        # Calculate the angstrom exponent
+        # with a linear fit to log AOD
+        tau = []
+        for w in wavs:
+            tau.append(self.__dict__['aTau'+w])
+
+        tau = np.array(tau)
+        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
+        self.__dict__['aAEfitm'] = fit[0,:]
+        self.__dict__['aAEfitb'] = fit[1,:]
+        self.wavs = wavs
+
+# ---
+    def get_mAEfit(self):
+        """
+        calculate a linear fit to the log-log
+        of wavelength and AOD 440-870
+        for the original retrieval data
+        """
+        wavs = self.wavs
+
+        # Calculate the angstrom exponent
+        # with a linear fit to log AOD
+        tau = []
+        wav = []
+        for w in wavs:
+            if 'mTau'+w in self.__dict__:
+                tau.append(self.__dict__['mTau'+w])
+                wav.append(float(w))
+
+        tau = np.array(tau)
+        wav = np.array(wav)
+        fit = np.polyfit(np.log(wav),-1.*np.log(tau+0.01),1)
+        self.__dict__['mAEfitm'] = fit[0,:]
+        self.__dict__['mAEfitb'] = fit[1,:]
 
 #----------------------------------------------------------------------------    
 class ABC(object):

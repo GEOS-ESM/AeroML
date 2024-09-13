@@ -6,27 +6,18 @@
 """
 
 import os, sys
-from   matplotlib.pyplot    import  cm, imshow, plot, figure
-from   matplotlib.pyplot    import  xlabel, ylabel, title, grid, savefig, legend
-import matplotlib.pyplot    as      plt
-from   matplotlib.ticker    import  MultipleLocator
-import matplotlib.patches   as      mpatches
-from   numpy                import  c_ as cat
-from   numpy                import  random, sort, pi, load, cos, log, std, exp
-from   numpy                import  reshape, arange, ones, zeros, interp, sqrt
-from   numpy                import  meshgrid, concatenate, squeeze
 import numpy                as      np
 from   .giant                import  MISSING, LAND, OCEAN, DEEP
-from   .nn                   import  NN, _plotKDE
+from   .nn                   import  NN
 import itertools
-from   sklearn.linear_model import LinearRegression
+from   sklearn.preprocessing import StandardScaler
 from   multiprocessing      import cpu_count
-from   .abc_c6_aux          import SummarizeCombinations, get_Iquartiles, get_Ispecies, get_ImRef
-from   .abc_c6_aux          import make_plots, make_plots_angstrom, make_plots_angstrom_fit, TestStats, SummaryPDFs
+from   .abc_c6_aux          import TestStats
 from   .brdf                import rtlsReflectance
 from   .mcd43c              import BRDF
 from functools              import reduce
 from glob                   import glob
+from .evaluation            import EVAL
 # ------
 MODVARNAMES = {'mRef470': 'MOD04 470 nm Reflectance',
                'mRef550': 'MOD04 550 nm Reflectance',
@@ -70,6 +61,11 @@ class SETUP(object):
                      Input_const = None,
                      Target = ['aTau550',],
                      K=None,
+                     f_balance=0.50,
+                     q_balance=True,
+                     minN=500,
+                     fignore=[],
+                     nbins = 6,                     
                      lInput_nnr = None):
 
         """
@@ -182,7 +178,7 @@ class SETUP(object):
         # Initialize K-folding
         # --------------------
         if K is None:
-            self.iTest = ones([self.nobs]).astype(bool)
+            self.iTest = np.ones([self.nobs]).astype(bool)
             self.iTrain = self.iValid
         else:
             self.kfold(K=K)
@@ -245,10 +241,10 @@ class ABC(object):
             self.aerFile = sorted(glob(self.fnameRoot + "_MERRA2*.npz"))
         first = True
         for filename in self.aerFile:
-            if 'wind' in load(filename).keys():
-                data = load(filename)['wind']
+            if 'wind' in np.load(filename).keys():
+                data = np.load(filename)['wind']
             else:
-                data = np.sqrt(load(filename)['u10m']**2 + load(filename)['v10m']**2)
+                data = np.sqrt(np.load(filename)['u10m']**2 + np.load(filename)['v10m']**2)
             if first:
                 self.wind = data
             else:
@@ -267,7 +263,7 @@ class ABC(object):
                 self.slvFile = sorted(glob(self.fnameRoot + "_MERRA2_TQV_TO3*.npz"))
             first = True
             for filename in self.slvFile:
-                data = load(filename)[name]*0.01
+                data = np.load(filename)[name]*0.01
                 if first:
                     self.__dict__[name] = data
                 else:
@@ -291,7 +287,7 @@ class ABC(object):
                 elif 'CxAlbedo' in albedo :
                     self.setCoxMunkBRF(albedo)
                 else:
-                    self.__dict__[albedo] = squeeze(load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
+                    self.__dict__[albedo] = np.squeeze(np.load(self.fnameRoot+'_'+albedo+'.npz')["albedo"])
                     self.giantList.append(albedo)
 
     def setSpec(self):
@@ -304,7 +300,7 @@ class ABC(object):
             first = True
             for filename in self.aerFile:
                 try:
-                    data = load(filename)[name]
+                    data = np.load(filename)[name]
                     if first:
                         self.__dict__[name] = data
                         self.giantList.append(name)
@@ -323,7 +319,7 @@ class ABC(object):
         names = ['470','550','660','870','1200','1600','2100']
         for ch in names:
             name = 'CxAlbedo' + ch
-            self.__dict__[name] = squeeze(load(self.fnameRoot+'_CxAlbedo.npz')[name])
+            self.__dict__[name] = np.squeeze(np.load(self.fnameRoot+'_CxAlbedo.npz')[name])
             self.giantList.append(name)
 
     def setBRDF(self):
@@ -335,7 +331,7 @@ class ABC(object):
                  'BRDF650','BRDF850','BRDF1200','BRDF1600',
                  'BRDF2100')
         for name in brdf.__dict__:
-            brdf.__dict__[name] = load(self.fnameRoot + "_MCD43C1.npz")[name]
+            brdf.__dict__[name] = np.load(self.fnameRoot + "_MCD43C1.npz")[name]
 
         for name in names:
             ch = name[4:]
@@ -353,7 +349,7 @@ class ABC(object):
         # -------------
         names = ('NDVI','EVI','NIRref')
         for name in names:
-            self.__dict__[name] = load(self.fnameRoot + "_NDVI.npz")[name]
+            self.__dict__[name] = np.load(self.fnameRoot + "_NDVI.npz")[name]
             self.giantList.append(name)
 
     def outlierRemoval(self,outliers):
@@ -361,26 +357,26 @@ class ABC(object):
         # # Outlier removal based on log-transformed AOD
         # # --------------------------------------------
         if outliers > 0.:
-            d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
+            d = np.log(self.mTau550[self.iValid]+0.01) - np.log(self.aTau550[self.iValid]+0.01)
             if self.verbose>0:
-                print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,std(d),d.size))
+                print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,np.std(d),d.size))
             for iter in range(3):
-                iValid = (abs(d)<outliers*std(d))
+                iValid = (abs(d)<outliers*np.std(d))
                 self.iValid[self.iValid] = iValid
-                d = log(self.mTau550[self.iValid]+0.01) - log(self.aTau550[self.iValid]+0.01)
+                d = np.log(self.mTau550[self.iValid]+0.01) - np.log(self.aTau550[self.iValid]+0.01)
                 if self.verbose>0:
-                    print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,std(d),d.size))
+                    print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,np.std(d),d.size))
         self.nValid = np.sum(self.iValid)
               
     def angleTranform(self):            
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
-        self.ScatteringAngle = cos(self.ScatteringAngle*pi/180.0) 
-        self.SensorAzimuth   = cos(self.SensorAzimuth*pi/180.0)   
-        self.SensorZenith    = cos(self.SensorZenith*pi/180.0)    
-        self.SolarAzimuth    = cos(self.SolarAzimuth*pi/180.0)    
-        self.SolarZenith     = cos(self.SolarZenith*pi/180.0)     
-        self.GlintAngle      = cos(self.GlintAngle*pi/180.0)      
+        self.ScatteringAngle = np.cos(self.ScatteringAngle*np.pi/180.0) 
+        self.SensorAzimuth   = np.cos(self.SensorAzimuth*np.pi/180.0)   
+        self.SensorZenith    = np.cos(self.SensorZenith*np.pi/180.0)    
+        self.SolarAzimuth    = np.cos(self.SolarAzimuth*np.pi/180.0)    
+        self.SolarZenith     = np.cos(self.SolarZenith*np.pi/180.0)     
+        self.GlintAngle      = np.cos(self.GlintAngle*np.pi/180.0)      
         self.AMF             = (1/self.SolarZenith) + (1/self.SensorZenith)
         self.giantList.append('AMF')
 
@@ -488,7 +484,7 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -580,7 +576,7 @@ class ABC_Land (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.iValid = np.ones(self.lon.shape).astype(bool)       
         self.nValid = np.sum(self.iValid)
 
         # Angle transforms: for NN work we work with cosine of angles
@@ -671,7 +667,7 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.iValid = np.ones(self.lon.shape).astype(bool)       
         self.nValid = np.sum(self.iValid)
 
             
@@ -807,7 +803,7 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.iValid = np.ones(self.lon.shape).astype(bool)       
         self.nValid = np.sum(self.iValid)
 
             
@@ -934,7 +930,7 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)        
+        self.iValid = np.ones(self.lon.shape).astype(bool)        
         self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -1063,7 +1059,7 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.iValid = np.ones(self.lon.shape).astype(bool)       
         self.nValid = np.sum(self.iValid)
 
             
@@ -1207,7 +1203,7 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
         # Reduce the Dataset
         # --------------------
         self.reduce(self.iValid)                    
-        self.iValid = ones(self.lon.shape).astype(bool)       
+        self.iValid = np.ones(self.lon.shape).astype(bool)       
         self.nValid = np.sum(iValid)
 
             
@@ -1256,7 +1252,7 @@ def _train(mxd,expid,c):
     else:
         k = 1
         for iTrain, iTest in mxd.kf.split(np.arange(mxd.nValid)):
-            I = arange(mxd.nobs)
+            I = np.arange(mxd.nobs)
             iValid = I[mxd.iValid]
             mxd.iTrain = iValid[iTrain]
             mxd.iTest  = iValid[iTest]
@@ -1302,7 +1298,7 @@ def _test(mxd,expid,c,plotting=True):
     else:
         k = 1
         for iTrain, iTest in mxd.kf.split(np.arange(self.nValid)):
-            I = arange(mxd.nobs)
+            I = np.arange(mxd.nobs)
             iValid = I[mxd.iValid]
             mxd.iTrain = iValid[iTrain]
             mxd.iTest  = iValid[iTest]
@@ -1389,7 +1385,7 @@ def _testMODIS(mxdx):
                   mxdx.mAEfitb[I] = AEb
         else:
             k = 1
-            for iTrain, iTest in mxdx.kf.split(arange(np.sum(mxdx.iValid))):
+            for iTrain, iTest in mxdx.kf.split(np.arange(np.sum(mxdx.iValid))):
                 I = iTest
 
                 mdata = []
@@ -1415,7 +1411,7 @@ def _testMODIS(mxdx):
 def get_combinations(Input_nnr,Input_const):
     comblist   = []
     combgroups = []
-    for n in arange(len(Input_nnr)):
+    for n in np.arange(len(Input_nnr)):
         for invars in itertools.combinations(Input_nnr,n+1):        
             b = ()
             for c in invars:

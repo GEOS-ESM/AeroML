@@ -10,7 +10,6 @@ import numpy                as      np
 from   .giant_viirs          import  MISSING, DT_LAND, DT_OCEAN, DB_LAND, DB_OCEAN, DB_DEEP
 from   .nn                   import  NN
 import itertools
-from   sklearn.linear_model import LinearRegression
 from   sklearn.preprocessing import StandardScaler
 from   multiprocessing      import cpu_count
 from   .abc_c6_aux          import TestStats

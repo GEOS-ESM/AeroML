@@ -291,9 +291,16 @@ class EVAL(object):
             # original
             figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm.png"
             self._plot2dKDE(AEmt,AEm,y_label='Original Retrieval',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
+
+            figfile = outdir+"/"+expid+"."+ident+"_2dhist-AEfitm.png"
+            self._plot2dHist(AEmt,AEm,y_label='Original Retrieval',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)            
             # corrected
             figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitm-corrected.png"
             self._plot2dKDE(AEmt,AEmr,y_label='NNR',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
+
+            figfile = outdir+"/"+expid+"."+ident+"_2dhist-AEfitm-corrected.png"
+            self._plot2dHist(AEmt,AEmr,y_label='NNR',x_bins=np.arange(-1,3,0.1),title=title,figfile=figfile)
+            
         
         # error pdf
         AEmt.shape = AEmt.shape + (1,)
@@ -307,9 +314,16 @@ class EVAL(object):
                 # original
                 figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb.png"
                 self._plot2dKDE(AEbt,AEb,y_label='Original Retrieval',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
+
+                figfile = outdir+"/"+expid+"."+ident+"_2dhist-AEfitb.png"
+                self._plot2dHist(AEbt,AEb,y_label='Original Retrieval',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)                
                 # corrected
                 figfile = outdir+"/"+expid+"."+ident+"_kde-AEfitb-corrected.png"
                 self._plot2dKDE(AEbt,AEbr,y_label='NNR',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
+
+                figfile = outdir+"/"+expid+"."+ident+"_2dhist-AEfitb-corrected.png"
+                self._plot2dHist(AEbt,AEbr,y_label='NNR',x_bins=np.arange(-20,10,0.5),title=title,figfile=figfile)
+                
 
             # error pdf
             AEbt.shape = AEbt.shape + (1,)
@@ -355,6 +369,10 @@ class EVAL(object):
             title = "Log("+names[t]+"+0.01)- "+ident
             self._plot2dKDE(targets[:,t],results[:,t],y_label='NNR',figfile=figfile,title=title)
 
+            figfile = outdir+"/"+expid+"."+ident+"_2dhist-"+names[t]+'-corrected.png'
+            self._plot2dHist(targets[:,t],results[:,t],y_label='NNR',figfile=figfile,title=title)
+
+
         # Plot KDE of uncorrected AOD
         # loop through targets
         # plot if there's a corresponding MODIS retrieval
@@ -364,12 +382,16 @@ class EVAL(object):
                 figfile = outdir+"/"+expid+"."+ident+"_kde-"+names[t]+'.png'
                 self._plot2dKDE(targets[:,t],original[t],y_label='Original Retrieval',figfile=figfile,title=title)
 
+                figfile = outdir+"/"+expid+"."+ident+"_2dhist-"+names[t]+'.png'
+                self._plot2dHist(targets[:,t],original[t],y_label='Original Retrieval',figfile=figfile,title=title)
+
                 # Scatter diagram for testing
                 # ---------------------------
                 figfile = outdir+"/"+expid+"."+ident+"_scat-"+names[t]+'.png'
                 self._plotScat(targets[:,t],original[t],y_values2=results[:,t],
                                y_label='Satellite',figfile=figfile,
                                label='Original',label2='Corrected')
+
 #------
     def get_ae550(self,targets,results,original):
         """
@@ -432,9 +454,15 @@ class EVAL(object):
                 figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name+'-corrected.png'
                 self._plot2dKDE(AEt_,AEr_,y_label='NNR',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
 
+                figfile = outdir+"/"+expid+"."+ident+"_2dhist-AE"+name+'-corrected.png'
+                self._plot2dHist(AEt_,AEr_,y_label='NNR',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
+
                 if AEo[t] is not None:
                     figfile = outdir+"/"+expid+"."+ident+"_kde-AE"+name+'.png'
                     self._plot2dKDE(AEt_,AEo[t],y_label='Standard',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
+
+                    figfile = outdir+"/"+expid+"."+ident+"_2dhist-AE"+name+'.png'
+                    self._plot2dHist(AEt_,AEo[t],y_label='Standard',x_bins=bins,y_bins=bins,title=title,figfile=figfile)
 
 #------
     def _plot1dKDE(self,values,label,values2=None,label2=None,nbins=100,x_label='Difference',figfile=None,title=None):
@@ -516,6 +544,40 @@ class EVAL(object):
         else:
             plt.show()
 
+#------
+    def _plot2dHist(self,x_values,y_values,x_bins=None,
+                 x_label='AERONET', y_label='STANDARD',figfile=None,title=None):
+        """
+        Plot Target vs Model using a 2D Historgram
+        """
+
+        if x_bins is None: x_bins = np.arange(-5., 1., 0.1 )
+
+        if self.laod:
+            formatter = aodFormat()
+        else:
+            formatter = None
+
+        fig = plt.figure()
+        ax = fig.add_axes([0.1,0.1,0.75,0.75])
+        if formatter != None:
+            ax.xaxis.set_major_formatter(formatter)
+            ax.yaxis.set_major_formatter(formatter)
+        ax.hist2d(x_values,y_values,bins=x_bins,cmap=plt.cm.gist_earth_r)
+        ax.plot([x_bins[0],x_bins[-1]],[x_bins[0],x_bins[-1]],'k')
+        ax.set_xlim([x_bins[0],x_bins[-1]])
+        ax.set_ylim([x_bins[0],x_bins[-1]])
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+        ax.grid()
+        if title is not None:
+            ax.set_title(title)
+
+        if figfile is not None:
+            plt.savefig(figfile)
+            plt.close(fig)
+        else:
+            plt.show()
 #-----
     def _plotScat(self,x_values,y_values,y_values2=None,
                   x_label='AERONET', y_label='STANDARD',label=None,label2=None,

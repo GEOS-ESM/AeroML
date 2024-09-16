@@ -1,0 +1,74 @@
+# inputs
+
+dict(
+# giantFile
+#  giantFile = '/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20221231.nc'
+#  aerFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_2*.npz'))
+#  slvFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_TQV_TO3_2*.npz'))
+
+#  giantFile = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*nc'))
+#  aerFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_2*npz'))
+#  slvFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_T*npz'))
+
+    giantFile = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*nc'],
+    aerFile   = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_2*npz'],
+    slvFile   = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_T*npz'],
+
+# tymemax sets a truncation date when reading in giant file
+# string with format YYYYMMDD
+# None reads the entire datarecord
+    tymemax = None,
+
+# number of hidden layers
+    nHLayers     = 1,
+
+# number of nodes in hidden layers
+# None uses the default of 200 coded in nn.py
+    nHidden      = None,
+
+# do training on combinations of the inputs
+    combinations = False,
+
+# NN target variable name
+    Target       = ['aTau550','aAEfitm'],
+
+# surface albedo variable name
+# options are None, CoxMunkLUT, or CxAlbedo
+# if CoxMunkLUT one needs to provide the coxmunk_lut option to ABC_Ocean,
+# otherwise default is used (default = '/nobackup/NNR/Misc/coxmunk_lut.npz')
+# if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
+# ['CxAlbedo']
+    Albedo       = None,
+
+# number of K-folds or training
+# if None does not do K-folding, trains on entire dataset
+    K            = None,
+
+# experiment name
+    expid        = 'bluech_linputs_combi_downselect_2outputsAEfitm_061',
+
+# Inputs that are always included
+# this can be None
+    Input_const = None,
+
+# Inputs that can be varied across combinations
+# if combinations flag is False, all of these inputs are used
+# if combinations flag is True, all possible combinations of these inputs
+# are tried
+    Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
+                    'lfdu','lfcc','lfss',
+                    'lmRef412','lmRef550','lmRef870','lmRef1200','lmRef2100'],
+
+
+# Inputs I want to the the log-transform of
+    lInput_nnr = ['mRef412','mRef440','mRef470','mRef550','mRef660', 'mRef870','mRef1200','mRef1600','mRef2100',
+                  'fdu','fcc','fss'],
+
+
+# Additional variables that the inputs are filtered by
+# standard filters are hardcoded in the abc_c6.py scripts
+    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'],
+)
+
+    
+    

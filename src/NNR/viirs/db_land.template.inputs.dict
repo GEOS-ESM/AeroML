@@ -104,8 +104,12 @@ dict(
 # minN is the minimum number of points in a size bin
 # if this is too small, very few obs will make it through
 # default is 500
+# fignore is a list of species to ignore when doing species balancing
+# here we ignore SS dominated because it is overwhelmingly the least observed
     q_balance = True,
     minN = 500,
+    fignore = ['fss'],
+    nbins = 6,
 
 # cloud fraction threshhold for filtering
 # detault if not provided is 0.7

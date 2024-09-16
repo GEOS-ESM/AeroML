@@ -5,7 +5,7 @@
 
 import os, sys
 from   pyabc.abc_viirs         import ABC_DB_Deep, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                    import glob
 import argparse
 
@@ -99,6 +99,15 @@ if __name__ == "__main__":
     # it through balancing procedure
     minN = inputs['minN']
 
+    # ignore a species when doing species balancing step
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
+
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
+
     # cloud threshhold for filtering
     # default if not provided is 0.7
     cloud_thresh = inputs['cloud_thresh']
@@ -110,6 +119,17 @@ if __name__ == "__main__":
     #            2 - bright surface
     #            3 - mixed
     algflag = inputs['algflag']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']
 
     # --------------
     # End of Inputs
@@ -137,7 +157,7 @@ if __name__ == "__main__":
     # -------------------------------------  
     deep = ABC_DB_Deep(giantFile,aerFile=aerFile,Albedo=Albedo,verbose=1,
                        aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                       algflag=algflag) 
+                       algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale) 
 
     if doTrain or doTest:
         # Initialize class for training/testing
@@ -153,7 +173,9 @@ if __name__ == "__main__":
                         lInput_nnr   = lInput_nnr,
                         f_balance    = f_balance,
                         q_balance    = q_balance,
-                        minN         = minN)
+                        minN         = minN,
+                        fignore      = fignore,
+                        nbins        = nbins)
 
 
     # Do Training and Testing
@@ -163,7 +185,32 @@ if __name__ == "__main__":
 
     if doTest:
         _testMODIS(deep)
-        SummaryPDFs(deep,varnames=['mRef670','mSre488'])
+
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            deep_out = ABC_DB_Deep(giantFile,aerFile=aerFile,Albedo=Albedo,
+                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                    algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
+
+            deep_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
+
+            deep_out.iTest[deep.outValid][deep.iTrain] = False
+            deep_out.expid = 'outlier.' + deep_out.expid
+
+            _testMODIS(deep_out)
 
         if combinations:
             SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')

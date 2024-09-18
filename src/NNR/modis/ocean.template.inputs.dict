@@ -19,6 +19,10 @@ dict(
 # None reads the entire datarecord
     tymemax = None,
 
+# how many std dev to use for outlier removal. If < 0, don't do outlier removal
+# default is 3
+    outliers = 3,    
+
 # number of hidden layers
     nHLayers     = 1,
 
@@ -28,6 +32,17 @@ dict(
 
 # do training on combinations of the inputs
     combinations = False,
+
+# number of K-folds or training
+# if None does not do K-folding, trains on entire dataset
+    K            = None,
+
+# Flags to Train or Test the DARK TARGET DATASET
+    doTrain      = True,
+    doTest       = True,
+
+# experiment name
+    expid        = 'bluech_linputs_combi_downselect_2outputsAEfitm_061',
 
 # NN target variable name
     Target       = ['aTau550','aAEfitm'],
@@ -39,13 +54,6 @@ dict(
 # if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
 # ['CxAlbedo']
     Albedo       = None,
-
-# number of K-folds or training
-# if None does not do K-folding, trains on entire dataset
-    K            = None,
-
-# experiment name
-    expid        = 'bluech_linputs_combi_downselect_2outputsAEfitm_061',
 
 # Inputs that are always included
 # this can be None
@@ -68,6 +76,36 @@ dict(
 # Additional variables that the inputs are filtered by
 # standard filters are hardcoded in the abc_c6.py scripts
     aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'],
+
+# fraction that defines whether a pixel is dominated by a species
+# if not set as an input default is 0.5
+# if less than 0, will not do balancing
+    f_balance = 0.5,
+
+# flag to do both species and target AOD balancing
+# default is True
+# minN is the minimum number of points in a size bin
+# if this is too small, very few obs will make it through
+# default is 500
+    q_balance = True,
+    minN = 500,
+    fignore = [],
+    nbins = 4,
+
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
+    cloud_thresh = 0.7,
+
+# take natural log of target aod
+# default is true
+    laod = True,
+
+# offset to protect against negative numbers.
+# detault is 0.01
+    logoffset = 0.01,
+
+# standard scale the targets
+    scale = True,
 )
 
     

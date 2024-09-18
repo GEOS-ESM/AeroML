@@ -49,6 +49,8 @@ VARNAMES    = {'cloud': 'MOD04 Cloud Fraction',
                'year': 'Year'}
 #--------------------------------------------------------------------------------------
 class SETUP(object):
+    def __init__(self):
+        pass    
     def setupNN(self,retrieval,expid,
                      nHidden=None,
                      nHLayers=1,
@@ -122,12 +124,31 @@ class SETUP(object):
             self.get_aAEfit()
             self.get_mAEfit()
 
+        # Fit the standard scalar of the targets
+        # ---------------------------------------
+        self.scaler = None
+        if self.scale:
+            targets = self.getTargets(self.iValid)
+            self.scaler = StandardScaler()
+            if self.nTarget == 1:
+                self.scaler.fit(targets.reshape(-1,1))
+            else:
+                self.scaler.fit(targets)
+
         # Balance the dataset before splitting
-        # No aerosol type should make up more that 35% 
+        # No aerosol type should make up more that 35%
         # of the total number of obs
+        # f_balance is the fraction that defines whether a species 'dominates'
         # --------------------------------------
-        self.iValid = self.balance(int(self.nobs*0.35))
-        self.nValid = np.sum(self.iValid)
+        self.f_balance = f_balance
+        self.q_balance = q_balance
+        if q_balance:
+            self.minN = minN
+            self.fignore = fignore
+            self.iValid = self.spc_target_balance(minN=minN,frac=f_balance,fignore=fignore,nbins=nbins)
+        elif f_balance > 0:
+            self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
+            self.nValid = np.sum(self.iValid)
 
         # Flatten Input_nnr into one list
         # -------------------------------
@@ -149,9 +170,12 @@ class SETUP(object):
         # --------------------
         if K is None:
             self.iTest = np.ones([self.nobs]).astype(bool)
-            self.iTrain = self.iValid
+            self.iTrain = np.ones([self.nobs]).astype(bool)
+            if (f_balance > 0) or q_balance:
+                self.iTest = ~self.iValid.copy()
+                self.iTrain = self.iValid.copy()
         else:
-            self.kfold(K=K)
+            self.kfold(K=K)        
 
         # Create list of topologies
         # -------------------------  
@@ -178,7 +202,12 @@ class SETUP(object):
         # optional log transform input variables log
         if lInput_nnr is not None:
             for vname in lInput_nnr:
-                self.__dict__['l'+vname] = np.log(self.__dict__[vname])
+#                self.__dict__['l'+vname] = np.log(self.__dict__[vname])
+                self.__dict__['scaler_l'+vname] = StandardScaler()
+                feature = self.__dict__[vname]
+                self.__dict__['scaler_l'+vname].fit(feature.reshape(-1,1))
+                self.__dict__['l'+vname] = self.__dict__['scaler_l'+vname].transform(feature.reshape(-1,1)).squeeze()
+
 
 # ---
     def get_aAE(self):
@@ -418,13 +447,13 @@ class ABC(object):
         # # Outlier removal based on log-transformed AOD
         # # --------------------------------------------
         if outliers > 0.:
-            d = np.log(self.mTau550[self.iValid]+0.01) - np.log(self.aTau550[self.iValid]+0.01)
+            d = np.log(self.mTau550[self.iValid]+self.logoffset) - np.log(self.aTau550[self.iValid]+self.logoffset)
             if self.verbose>0:
                 print("Outlier removal: %d   sig_d = %f  nGood=%d "%(-1,np.std(d),d.size))
             for iter in range(3):
                 iValid = (abs(d)<outliers*np.std(d))
                 self.iValid[self.iValid] = iValid
-                d = np.log(self.mTau550[self.iValid]+0.01) - np.log(self.aTau550[self.iValid]+0.01)
+                d = np.log(self.mTau550[self.iValid]+self.logoffset) - np.log(self.aTau550[self.iValid]+self.logoffset)
                 if self.verbose>0:
                     print("Outlier removal: %d   sig_d = %f  nGood=%d "%(iter,np.std(d),d.size))
         self.nValid = np.sum(self.iValid)
@@ -458,12 +487,14 @@ class ABC(object):
             self.nValid = np.sum(self.iValid)
 
 #---------------------------------------------------------------------------- 
-class ABC_Ocean (OCEAN,NN,SETUP,ABC):
+class ABC_Ocean (OCEAN,NN,SETUP,ABC,EVAL):
 
     def __init__ (self,fname, 
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
-                  outliers=3., 
-                  laod=True, 
+                  outliers=3.,
+                  scale=False,
+                  laod=True,
+                  logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
                   glint_thresh=40.0,
@@ -498,6 +529,8 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         self.verbose = verbose
         self.laod    = laod
         self.tymemax = tymemax
+        self.scale   = scale
+        self.logoffset = logoffset        
 
         OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
 
@@ -538,15 +571,24 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
         # does not retrieve.  However, there are a few cases (~200) where this does not happen.
         # the GlingAngle is very close to 40, greater than 38.  Not sure why these get through.
 
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-              
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
+        self.reduce(self.iValid)
         self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]            
+              
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)
+            self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -558,13 +600,15 @@ class ABC_Ocean (OCEAN,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------    
 
-class ABC_Land (LAND,NN,SETUP,ABC):
+class ABC_Land (LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   Albedo=None,
                   alb_max = 0.25,
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,                  
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -592,6 +636,8 @@ class ABC_Land (LAND,NN,SETUP,ABC):
         self.verbose = verbose
         self.laod = laod
         self.tymemax = tymemax
+        self.scale   = scale
+        self.logoffset = logoffset
 
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -629,29 +675,37 @@ class ABC_Land (LAND,NN,SETUP,ABC):
         # ------------------------------
         self.addFilter(aFilter)
 
+        # Reduce the Dataset
+        # --------------------
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
+        self.nValid = np.sum(self.iValid)
         
         # Outlier removal based on log-transformed AOD
         # --------------------------------------------
-        self.outlierRemoval(outliers)
+        if outliers >0:
+            self.outlierRemoval(outliers)
 
-        # Reduce the Dataset
-        # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)       
-        self.nValid = np.sum(self.iValid)
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)       
+            self.nValid = np.sum(self.iValid)
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
         self.angleTranform()    
 #----------------------------------------------------------------------------    
 
-class ABC_Deep (DEEP,NN,SETUP,ABC):
+class ABC_Deep (DEEP,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   useLAND=False,
                   Albedo=None,
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,                  
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -678,6 +732,8 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.scale   = scale
+        self.logoffset = logoffset        
         self.tymemax = tymemax
 
 
@@ -720,16 +776,23 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
 
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)       
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)       
+            self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -738,13 +801,15 @@ class ABC_Deep (DEEP,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------    
 
-class ABC_DBDT (LAND,NN,SETUP,ABC):
+class ABC_DBDT (LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   useDEEP = False,
                   Albedo=None,
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,                  
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -769,6 +834,8 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.scale   = scale
+        self.logoffset = logoffset        
 
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
         dbl = DEEP(fname,tymemax=tymemax)
@@ -856,16 +923,24 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
 
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)       
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
+        
+        
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)       
+            self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -874,7 +949,7 @@ class ABC_DBDT (LAND,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------    
 
-class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
+class ABC_DBDT_INT (LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   useDEEP = False,
@@ -882,6 +957,8 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
                   Albedo=['MOD43BClimAlbedo'],
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,                  
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -906,6 +983,8 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.scale   = scale
+        self.logoffset = logoffset        
 
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
         dbl = DEEP(fname,tymemax=tymemax)
@@ -983,16 +1062,23 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
 
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)        
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)        
+            self.nValid = np.sum(self.iValid)
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -1000,12 +1086,14 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC):
 
 #----------------------------------------------------------------------------    
 
-class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
+class ABC_LAND_COMP (LAND,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   useDEEP = False,
                   Albedo=['MOD43BClimAlbedo'],
                   outliers=3.,
+                  scale=False,
+                  logoffset=0.01,                  
                   laod=True,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -1033,6 +1121,8 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
+        self.scale   = scale
+        self.logoffset = logoffset        
 
         LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
         dbl = DEEP(fname,tymemax=tymemax)
@@ -1112,16 +1202,24 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
 
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)       
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
         self.nValid = np.sum(self.iValid)
+        
+        
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)       
+            self.nValid = np.sum(self.iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -1130,7 +1228,7 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC):
 #----------------------------------------------------------------------------    
 
 
-class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
+class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC,EVAL):
 
     def __init__ (self, fname,
                   useLAND = False,
@@ -1139,6 +1237,8 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
                   Albedo=['MOD43BClimAlbedo'],
                   outliers=3.,
                   laod=True,
+                  scale=False,
+                  logoffset=0.01,                  
                   verbose=0,
                   cloud_thresh=0.70,
                   aFilter=None,
@@ -1165,7 +1265,9 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod = laod
-
+        self.scale   = scale
+        self.logoffset = logoffset
+        
         DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
         lnd = LAND(fname,tymemax=tymemax)
 
@@ -1256,16 +1358,23 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC):
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
 
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)       
-        self.nValid = np.sum(iValid)
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
+        self.nValid = np.sum(iValid)        
+        
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)                    
+            self.iValid = np.ones(self.lon.shape).astype(bool)       
+            self.nValid = np.sum(iValid)
 
             
         # Angle transforms: for NN work we work with cosine of angles
@@ -1327,6 +1436,7 @@ def _test(mxd,expid,c,plotting=True):
     ident  = mxd.ident
     outdir = mxd.outdir    
     if mxd.K is None:
+        # figure out the net filename
         if mxd.combinations:
             inputs = expid.split('.')
             found = False
@@ -1346,17 +1456,16 @@ def _test(mxd,expid,c,plotting=True):
           invars = mxd.comblist[0]
           netFile = outdir+"/"+".".join(invars)+'_Tau.net'
 
+        # load the net
         mxd.net = mxd.loadnet(netFile)
         mxd.Input = mxd.comblist[c]
+        # get statistics and plot
         TestStats(mxd,mxd.K,c)
         if plotting: 
-            if mxd.angstrom:
-                make_plots_angstrom(mxd,expid,ident,I=mxd.iTest)
-            elif mxd.angstrom_fit:
-                make_plots_angstrom_fit(mxd,expid,ident,I=mxd.iTest)
-            else:
-                make_plots(mxd,expid,ident,I=mxd.iTest)
+            mxd.plotdir = outdir+"/"+".".join(invars)
+            mxd.EvaluationPlots(expid,ident,mxd.iTest)
     else:
+        # loop through k-folds and test
         k = 1
         for iTrain, iTest in mxd.kf.split(np.arange(self.nValid)):
             I = np.arange(mxd.nobs)
@@ -1364,6 +1473,7 @@ def _test(mxd,expid,c,plotting=True):
             mxd.iTrain = iValid[iTrain]
             mxd.iTest  = iValid[iTest]
 
+            # find the net file
             if mxd.combinations:
                 inputs = expid.split('.')
                 found = False
@@ -1378,23 +1488,19 @@ def _test(mxd,expid,c,plotting=True):
                         pass
 
                 if not found:
-                    raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))
-                    
+                    raise('{} not found.  Need to train this combinatin of inputs'.format(netFile))                    
             else:
                 invars = mxd.comblist[0]
                 netFile = outdir+"/"+".".join(invars)+'.k={}_Tau.net'.format(str(k))
 
+            # load the net
+            mxd.net = mxd.loadnet(netFile)
+            mxd.Input = mxd.comblist[c]      
+            TestStats(mxd,k-1,c)
+            if plotting:
+                mxd.plotdir = outdir+"/"+".".join(invars)
+                mxd.EvaluationPlots(expid,ident+'.k={}'.format(str(k)),mxd.iTest)
 
-              mxd.net = mxd.loadnet(netFile)
-              mxd.Input = mxd.comblist[c]      
-              TestStats(mxd,k-1,c)
-              if plotting: 
-                  if mxd.angstrom:
-                      make_plots_angstrom(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
-                  elif mxd.angstrom_ft:
-                      make_plots_angstrom_fit(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest,k=k)
-                  else:
-                      make_plots(mxd,expid,'.k={}'.format(str(k)),I=mxd.iTest)
             k = k + 1    
 
 #---------------------------------------------------------------------
@@ -1415,58 +1521,6 @@ def _testMODIS(mxdx):
     else:
         for c,Input in enumerate(mxdx.comblist):
             _test(mxdx,'.'.join(Input),c,plotting=False)
-
-            # because plotting is false, Get AE of MODIS
-            # it is other wise gotten within the plotting part
-            nwav = 6
-            wavs = ['440','470','500','550','660','870']
-            wav  = np.array(wavs).astype(float)
-            wavm = []
-            for t in range(nwav):
-                name = 'mTau'+wavs[t]
-                if name in mxdx.__dict__:
-                    wavm.append(t)
-
-              if mxdx.K is None:
-                  I = mxdx.iTest
-                  mdata = []
-                  fwav  = []
-                  for t in wavm:
-                      name = 'mTau'+wavs[t]
-                      fwav.append(wav[t])
-                      mdata.append(mxdx.__dict__[name][I])
-                  mdata = np.array(mdata)
-                  fwav  = np.array(fwav)
-                  fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-                  AEm = fit[0,:]
-                  AEb = fit[1,:]
-                  mxdx.mAEfitm = np.ones(len(mxdx.mTau550))*-999
-                  mxdx.mAEfitb = np.ones(len(mxdx.mTau550))*-999
-                  mxdx.mAEfitm[I] = AEm
-                  mxdx.mAEfitb[I] = AEb
-        else:
-            k = 1
-            for iTrain, iTest in mxdx.kf.split(np.arange(np.sum(mxdx.iValid))):
-                I = iTest
-
-                mdata = []
-                fwav  = []
-                for t in wavm:
-                    name = 'mTau'+wavs[t]
-                    fwav.append(wav[t])
-                    mdata.append(mxdx.__dict__[name][I])
-                mdata = np.array(mdata)
-                fwav  = np.array(fwav)
-                fit = np.polyfit(np.log(fwav),-1.*np.log(mdata+0.01),1)
-                AEm = fit[0,:]
-                AEb = fit[1,:]
-
-                mxdx.__dict__['mAEfitm_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-                mxdx.__dict__['mAEfitb_{}'.format(k)] = np.ones(len(mxd.mTau550))*-999
-                mxdx.__dict__['mAEfitm_{}'.format(k)][I]= AEm
-                mxdx.__dict__['mAEfitb_{}'.format(k)][I]= AEb
-
-                k += 1        
 
 #---------------------------------------------------------------------
 def get_combinations(Input_nnr,Input_const):

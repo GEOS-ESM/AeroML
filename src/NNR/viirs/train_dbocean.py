@@ -4,7 +4,7 @@
 """
 
 import os, sys
-from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS, flatten_list
+from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS
 from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                       import glob
 import argparse

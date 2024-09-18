@@ -4,8 +4,8 @@
 """
 
 import os, sys
-from   pyabc.abc_c6               import ABC_Ocean, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6               import ABC_Ocean, _trainMODIS, _testMODIS
+from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                       import glob
 import argparse
 
@@ -14,12 +14,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("inputs",
                         help="python file with dictionary of inputs")
-
-    parser.add_argument("--notrain",action='store_true',
-                        help="don't do training")
-
-    parser.add_argument("--notest",action='store_true',
-                        help="don't do testing")    
 
     args = parser.parse_args()
 
@@ -49,6 +43,10 @@ if __name__ == "__main__":
     # None reads the entire datarecord
     tymemax = inputs['tymemax']
 
+    # how many std dev to use for outlier removal. If < 0, don't do outlier removal
+    # default is 3
+    outliers = inputs['outliers']
+
     # number of hidden layers
     nHLayers     = inputs['nHLayers']
     
@@ -74,15 +72,8 @@ if __name__ == "__main__":
     K            = inputs['K']
 
     # Flags to Train or Test the DARK TARGET DATASET
-    if args.notrain:
-        doTrain = False
-    else:
-        doTrain = True
-
-    if args.notest:
-        doTest = False
-    else:
-        doTest = True
+    doTrain      = inputs['doTrain']
+    doTest       = inputs['doTest']
 
     # experiment name
     expid   = inputs['expid']  
@@ -103,12 +94,46 @@ if __name__ == "__main__":
     Input_nnr = inputs['Input_nnr']
 
     # Inputs I want to the the log-transform of
-    lInput_nnr = ['mRef412','mRef440','mRef470','mRef550','mRef660', 'mRef870','mRef1200','mRef1600','mRef2100',
-                  'fdu','fcc','fss']
+    lInput_nnr = inputs['lInput_nnr']
 
     # Additional variables that the inputs are filtered by
-    # standard filters are hardcoded in the abc_c6.py scripts  
-    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
+    # standard filters are hardcoded in the abc_c6.py scripts 
+    aFilter  = inputs['aFilter']
+
+    # fraction that defines whether a pixel is domniated by a species
+    f_balance = inputs['f_balance']
+
+    # flag to do both species and target AOD balancing
+    q_balance = inputs['q_balance']
+
+    # minimum number of points to have in a size bin for balancing
+    # this is an adhoc parameter, but if it's too small, no obs will make
+    # it through balancing procedure
+    minN = inputs['minN']
+
+    # ignore a species when doing species balancing step
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
+
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
+
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']    
 
     # --------------
     # End of Inputs
@@ -140,7 +165,10 @@ if __name__ == "__main__":
     # -------------------------------------
     if doTrain or doTest:
         ocean = ABC_Ocean(giantFile,aerFile=aerFile,slvFile=slvFile,
-                      Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)  
+                      Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
+                      cloud_thresh=cloud_thresh,outliers=outliers,
+                      logoffset=logoffset,laod=laod,scale=scale)  
+
         # Initialize class for training/testing
         # ---------------------------------------------
         ocean.setupNN(retrieval, expid,
@@ -151,7 +179,12 @@ if __name__ == "__main__":
                       Input_nnr    = Input_nnr,                                         
                       Target       = Target,                      
                       K            = K,
-                      lInput_nnr   = lInput_nnr)
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = f_balance,
+                      q_balance    = q_balance,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
 
 
     # Do Training and Testing
@@ -161,7 +194,34 @@ if __name__ == "__main__":
 
     if doTest:
         _testMODIS(ocean)
-        SummaryPDFs(ocean,varnames=None)
+
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            ocean_out = ABC_Ocean(giantFile,aerFile=aerFile,slvFile=slvFile,
+                              Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
+                              cloud_thresh=cloud_thresh,outliers=-1,
+                              logoffset=logoffset,laod=laod,scale=scale)
+
+            ocean_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
+
+            ocean_out.iTest[ocean.outValid][ocean.iTrain] = False
+            ocean_out.expid = 'outlier.' + ocean_out.expid
+
+            _testMODIS(ocean_out)
+
         if combinations:
             SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='rmse')
       

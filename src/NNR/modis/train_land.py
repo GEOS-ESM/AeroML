@@ -55,7 +55,7 @@ if __name__ == "__main__":
     nHidden      = inputs['nHidden']
 
     # do training on combinations of the inputs
-    combinations = False
+    combinations = inputs['combinations']
 
     # NN target variable names
     Target = inputs['Target']

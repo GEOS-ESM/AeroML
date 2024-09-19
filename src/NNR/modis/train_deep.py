@@ -7,11 +7,22 @@ import os, sys
 from   pyabc.abc_c6               import ABC_Deep, _trainMODIS, _testMODIS, flatten_list
 from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
 from   pyabc.abc_c6               import ABC_DEEP_COMP, ABC_DBDT_INT
-
+from   glob                       import glob
 
 if __name__ == "__main__":
   # giantFile
-  giantFile = '/nobackup/NNR/Training/061/giant_C061_10km_Terra_v3.0_20211231.nc'
+#  giantFile = '/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20221231.nc'
+#  aerFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_2*.npz'))
+#  slvFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_TQV_TO3_2*.npz'))
+
+  giantFile = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*nc'))
+  aerFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_2*npz'))
+  slvFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_T*npz'))
+
+#  giantFile = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*nc'))
+#  aerFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_2*npz'))
+#  slvFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_T*npz'))
+
 
   # tymemax sets a truncation date when reading in giant file
   # string with format YYYYMMDD
@@ -31,9 +42,11 @@ if __name__ == "__main__":
   # NN target variable names
 #  Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
 #  Target       = ['aTau550']
-  Target       = ['aAE440','aAE470','aAE500','aTau550','aAE660','aAE870']
+#  Target       = ['aAE440','aAE470','aAE500','aTau550','aAE660','aAE870']
 #  Target       = ['aAE440','aTau550','aAE870']
 #  Target       = ['aTau440','aTau550','aTau870']
+  Target       = ['aTau550','aAEfitm'] #,'aAEfitb']
+
 
   # surface albedo variable name
   # options are None, MCD43C1, MOD43BClimAlbedo  
@@ -50,7 +63,7 @@ if __name__ == "__main__":
   doTest_extra = False
 
   # experiment name
-  expid        = 'candidate_mSre_6outputsAE_061'
+  expid        = 'candidate_mSre_2outputsAEfitm_061'
 
   # Inputs that are always included
   # this can be None
@@ -64,7 +77,8 @@ if __name__ == "__main__":
   # are tried
   Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle','mRef412','mRef470','mRef660',
                   'fdu','fcc','fss']+\
-                 ['mSre412','mSre470','mSre660']         
+                 ['mSre412','mSre470','mSre660'] 
+#                 ['tqv','to3']
 #  Input_nnr =   ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
 #  Input_nnr    = ['mSre412','mSre470','mSre660']
 
@@ -83,9 +97,13 @@ if __name__ == "__main__":
   # -------------
 
   # get satellite name from giantFile name
-  if 'terra' in os.path.basename(giantFile).lower():
+  if type(giantFile) is str:
+      gFile = giantFile
+  else:
+      gFile = giantFile[0]
+  if 'terra' in os.path.basename(gFile).lower():
       sat      = 'Terra'
-  elif 'aqua' in os.path.basename(giantFile).lower():
+  elif 'aqua' in os.path.basename(gFile).lower():
       sat      = 'Aqua'
 
   if sat == 'Terra':
@@ -104,7 +122,8 @@ if __name__ == "__main__":
   # Train/Test on full dataset
   # -------------------------------------
   if doTrain or doTest:
-    deep = ABC_Deep(giantFile,useLAND=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)  
+    deep = ABC_Deep(giantFile,aerFile=aerFile,slvFile=slvFile,
+                    useLAND=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)  
     # Initialize class for training/testing
     # ---------------------------------------------
     deep.setupNN(retrieval, expid,

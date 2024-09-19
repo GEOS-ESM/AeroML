@@ -58,7 +58,7 @@ if __name__ == "__main__":
     combinations = False
 
     # NN target variable names
-    inputs['Target']
+    Target = inputs['Target']
 
     # surface albedo variable name
     # options are MCD43C1, MOD43BClimAlbedo

@@ -4,208 +4,285 @@
 """
 
 import os, sys
-from   pyabc.abc_c6               import ABC_Deep, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
+from   pyabc.abc_c6               import ABC_Deep, _trainMODIS, _testMODIS
+from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   pyabc.abc_c6               import ABC_DEEP_COMP, ABC_DBDT_INT
 from   glob                       import glob
+import argparse
 
 if __name__ == "__main__":
-  # giantFile
-#  giantFile = '/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20221231.nc'
-#  aerFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_2*.npz'))
-#  slvFile   = sorted(glob(giantFile[:-3] + '_GEOSIT_TQV_TO3_2*.npz'))
 
-  giantFile = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*nc'))
-  aerFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_2*npz'))
-  slvFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_T*npz'))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputs",
+                        help="python file with dictionary of inputs")
 
-#  giantFile = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*nc'))
-#  aerFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_2*npz'))
-#  slvFile   = sorted(glob('/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Aqua_v3.0_20*MERRA2_T*npz'))
+    args = parser.parse_args()
 
+    # read in dictionary of input parameters
+    s = open(args.inputs).read()
+    inputs = eval(s)
 
-  # tymemax sets a truncation date when reading in giant file
-  # string with format YYYYMMDD
-  # None reads the entire datarecord
-  tymemax = None
+    # --------------
+    # Setup Inputs
+    # -------------
 
-  # number of hidden layers
-  nHLayers     = 1
+    # giantFile
+    giantFile = []
+    for gFile in inputs['giantFile']:
+        giantFile += sorted(glob(gFile))
 
-  # number of nodes in hidden layers
-  # None uses the default of 200 coded in nn.py  
-  nHidden      = None
+    aerFile = []
+    for aFile in inputs['aerFile']:
+        aerFile += sorted(glob(aFile))
 
-  # do training on combinations of the inputs
-  combinations = False
-
-  # NN target variable names
-#  Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
-#  Target       = ['aTau550']
-#  Target       = ['aAE440','aAE470','aAE500','aTau550','aAE660','aAE870']
-#  Target       = ['aAE440','aTau550','aAE870']
-#  Target       = ['aTau440','aTau550','aTau870']
-  Target       = ['aTau550','aAEfitm'] #,'aAEfitb']
+    slvFile = []
+    for sFile in inputs['slvFile']:
+        slvFile += sorted(glob(sFile))
 
 
-  # surface albedo variable name
-  # options are None, MCD43C1, MOD43BClimAlbedo  
-  Albedo       = None #['MCD43C1'] #['MOD43BClimAlbedo']
 
-  # number of K-folds or training
-  # if None does not do K-folding, trains on entire dataset
-  K            = None  
+    # tymemax sets a truncation date when reading in giant file
+    # string with format YYYYMMDD
+    # None reads the entire datarecord
+    tymemax = inputs['tymemax']
+
+    # how many std dev to use for outlier removal. If < 0, don't do outlier removal
+    # default is 3
+    outliers = inputs['outliers']
+
+    # number of hidden layers
+    nHLayers     = inputs['nHLayers']
+
+    # number of nodes in hidden layers
+    # None uses the default of 200 coded in nn.py  
+    nHidden      = inputs['nHidden']
+
+    # do training on combinations of the inputs
+    combinations = inputs['combinations']
+
+    # NN target variable names
+    Target       = inputs['Target']
 
 
-  # Flags to Train of Test the DEEP BLUE DATASET
-  doTrain      = True
-  doTest       = True
-  doTest_extra = False
+    # surface albedo variable name
+    # options are None, MCD43C1, MOD43BClimAlbedo  
+    Albedo       = inputs['Albedo']
 
-  # experiment name
-  expid        = 'candidate_mSre_2outputsAEfitm_061'
+    # number of K-folds or training
+    # if None does not do K-folding, trains on entire dataset
+    K            = inputs['K'] 
 
-  # Inputs that are always included
-  # this can be None
-#  Input_const  = ['SolarZenith','ScatteringAngle', 'GlintAngle','mRef412','mRef470','mRef660',
-#                  'fdu','fcc','fss']
-  Input_const  = None
+    # Flags to Train of Test the DEEP BLUE DATASET
+    doTrain      = inputs['doTrain']
+    doTest       = inputs['doTest']
+    doTest_extra = inputs['doTest_extra']
 
-  # Inputs that can be varied across combinations
-  # if combinations flag is False, all of these inputs are used
-  # if combinations flag is True, all possible combinations of these inputs
-  # are tried
-  Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle','mRef412','mRef470','mRef660',
-                  'fdu','fcc','fss']+\
-                 ['mSre412','mSre470','mSre660'] 
-#                 ['tqv','to3']
-#  Input_nnr =   ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
-#  Input_nnr    = ['mSre412','mSre470','mSre660']
+    # experiment name
+    expid        = inputs['expid']
 
-  # Additional variables that the inputs are filtered by
-  # standard filters are hardcoded in the abc_c6.py scripts
-#  aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'] +\
-  aFilter      = ['aTau440','aTau550','aTau870'] +\
-                 ['mSre412','mSre470','mSre660'] #+\
-#                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
+    # Inputs that are always included
+    # this can be None
+    Input_const  = inputs['Input_const']
+
+    # Inputs that can be varied across combinations
+    # if combinations flag is False, all of these inputs are used
+    # if combinations flag is True, all possible combinations of these inputs
+    # are tried
+    Input_nnr    = inputs['Input_nnr']
+
+    # Inputs I want to the the log-transform of
+    lInput_nnr = inputs['lInput_nnr']
+
+
+    # Additional variables that the inputs are filtered by
+    # standard filters are hardcoded in the abc_c6.py scripts
+    aFilter      = inputs['aFilter']
  
-  # ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
+    # fraction that defines whether a pixel is domniated by a species
+    f_balance = inputs['f_balance']
+
+    # flag to do both species and target AOD balancing
+    q_balance = inputs['q_balance']
+
+    # minimum number of points to have in a size bin for balancing
+    # this is an adhoc parameter, but if it's too small, no obs will make
+    # it through balancing procedure
+    minN = inputs['minN']
+
+    # ignore a species when doing species balancing step
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
+
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
+
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']
+
+    # --------------
+    # End of Inputs
+    # -------------
+
+    # get satellite name from giantFile name
+    if type(giantFile) is str:
+        gFile = giantFile
+    else:
+        gFile = giantFile[0]
+    if 'terra' in os.path.basename(gFile).lower():
+        sat      = 'Terra'
+    elif 'aqua' in os.path.basename(gFile).lower():
+        sat      = 'Aqua'
+
+    if sat == 'Terra':
+        retrieval    = 'MOD_DEEP'
+    if sat == 'Aqua':
+        retrieval    = 'MYD_DEEP'
 
 
-  # --------------
-  # End of Inputs
-  # -------------
+    expid        = '{}_{}'.format(retrieval,expid)
 
-  # get satellite name from giantFile name
-  if type(giantFile) is str:
-      gFile = giantFile
-  else:
-      gFile = giantFile[0]
-  if 'terra' in os.path.basename(gFile).lower():
-      sat      = 'Terra'
-  elif 'aqua' in os.path.basename(gFile).lower():
-      sat      = 'Aqua'
+    if Input_const is not None:
+        InputMaster = list((Input_const,) + tuple(Input_nnr))      
+    else:
+        InputMaster = Input_nnr
 
-  if sat == 'Terra':
-    retrieval    = 'MOD_DEEP'
-  if sat == 'Aqua':
-    retrieval    = 'MYD_DEEP'
+    # Train/Test on full dataset
+    # -------------------------------------
+    if doTrain or doTest:
+      deep = ABC_Deep(giantFile,aerFile=aerFile,slvFile=slvFile,
+                      useLAND=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
+                      cloud_thresh=cloud_thresh,outliers=outliers,
+                      logoffset=logoffset,laod=laod,scale=scale)  
 
-
-  expid        = '{}_{}'.format(retrieval,expid)
-
-  if Input_const is not None:
-    InputMaster = list((Input_const,) + tuple(Input_nnr))      
-  else:
-    InputMaster = Input_nnr
-
-  # Train/Test on full dataset
-  # -------------------------------------
-  if doTrain or doTest:
-    deep = ABC_Deep(giantFile,aerFile=aerFile,slvFile=slvFile,
-                    useLAND=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)  
-    # Initialize class for training/testing
-    # ---------------------------------------------
-    deep.setupNN(retrieval, expid,
-                        nHidden      = nHidden,
-                        nHLayers     = nHLayers,
-                        combinations = combinations,
-                        Input_const  = Input_const,
-                        Input_nnr    = Input_nnr,                                         
-                        Target       = Target,                      
-                        K            = K)
+      # Initialize class for training/testing
+      # ---------------------------------------------
+      deep.setupNN(retrieval, expid,
+                          nHidden      = nHidden,
+                          nHLayers     = nHLayers,
+                          combinations = combinations,
+                          Input_const  = Input_const,
+                          Input_nnr    = Input_nnr,                                         
+                          Target       = Target,                      
+                          K            = K,
+                          lInput_nnr   = lInput_nnr,
+                          f_balance    = f_balance,
+                          q_balance    = q_balance,
+                          minN         = minN,
+                          fignore      = fignore,
+                          nbins        = nbins)
 
 
-  # Do Training and Testing
-  # ------------------------
-  if doTrain:
-    _trainMODIS(deep)
+    # Do Training and Testing
+    # ------------------------
+    if doTrain:
+        _trainMODIS(deep)
 
-  if doTest:
-    _testMODIS(deep)
-    SummaryPDFs(deep,varnames=['mRef660','mSre470'])
+    if doTest:
+        _testMODIS(deep)
 
-    if combinations:
-      SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            deep_out = ABC_Deep(giantFile,aerFile=aerFile,slvFile=slvFile,
+                      Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
+                      cloud_thresh=cloud_thresh,outliers=-1,
+                      logoffset=logoffset,laod=laod,scale=scale)
+
+            deep_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
+
+            deep_out.iTest[deep.outValid][deep.iTrain] = False
+            deep_out.expid = 'outlier.' + deep_out.expid
+
+            _testMODIS(deep_out)
+
+
+        if combinations:
+            SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
       
 
 
-  # Test on DB-DT Intersection
-  #-----------------------------
-  if doTest_extra:
-    deep_int = ABC_DBDT_INT(giantFile,Albedo=Albedo,useDEEP=True,testDEEP=True,verbose=1,aFilter=aFilter,tymemax=tymemax)  
-    if deep_int.nobs >0:
-      deep_int.setupNN(retrieval, expid,
-                      nHidden      = nHidden,
-                      nHLayers     = nHLayers,
-                      combinations = combinations,
-                      Input_const  = Input_const,
-                      Input_nnr    = Input_nnr,                                         
-                      Target       = Target,                      
-                      K            = K)  
+    # Test on DB-DT Intersection
+    #-----------------------------
+    if doTest_extra:
+        deep_int = ABC_DBDT_INT(giantFile,Albedo=Albedo,useDEEP=True,testDEEP=True,verbose=1,aFilter=aFilter,tymemax=tymemax)  
+        if deep_int.nobs >0:
+            deep_int.setupNN(retrieval, expid,
+                          nHidden      = nHidden,
+                          nHLayers     = nHLayers,
+                          combinations = combinations,
+                          Input_const  = Input_const,
+                          Input_nnr    = Input_nnr,                                         
+                          Target       = Target,                      
+                          K            = K)  
 
-      deep_int.plotdir = deep_int.outdir + '/DEEP_INT/'
-      _testMODIS(deep_int)
-      if combinations:
-          SummarizeCombinations(deep_int,InputMaster,yrange=None,sortname='rmse')
+            deep_int.plotdir = deep_int.outdir + '/DEEP_INT/'
+            _testMODIS(deep_int)
+            if combinations:
+                SummarizeCombinations(deep_int,InputMaster,yrange=None,sortname='rmse')
 
-      deep_int = ABC_DBDT_INT(giantFile,Albedo=Albedo,useDEEP=True,testDEEP=False,verbose=1,aFilter=aFilter,tymemax=tymemax)  
+            deep_int = ABC_DBDT_INT(giantFile,Albedo=Albedo,useDEEP=True,testDEEP=False,verbose=1,aFilter=aFilter,tymemax=tymemax)  
 
-      deep_int.setupNN(retrieval, expid,
-                      nHidden      = nHidden,
-                      nHLayers     = nHLayers,
-                      combinations = combinations,
-                      Input_const  = Input_const,
-                      Input_nnr    = Input_nnr,                                         
-                      Target       = Target,                      
-                      K            = K)  
+            deep_int.setupNN(retrieval, expid,
+                          nHidden      = nHidden,
+                          nHLayers     = nHLayers,
+                          combinations = combinations,
+                          Input_const  = Input_const,
+                          Input_nnr    = Input_nnr,                                         
+                          Target       = Target,                      
+                          K            = K)  
 
-      deep_int.plotdir = deep_int.outdir + '/DEEP_INT/'
+            deep_int.plotdir = deep_int.outdir + '/DEEP_INT/'
 
-      SummaryPDFs(deep_int,doInt=True)  
+            SummaryPDFs(deep_int,doInt=True)  
 
 
 
-  # Test on DEEP BLUE Complement
-  # ---------------------------------------------  
-  if doTest_extra:
-    deep_comp = ABC_DEEP_COMP(giantFile,useLAND=False,noLANDref=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)
-    if deep_comp.nobs >0:
-      # Initialize class for training/testing
-      # ---------------------------------------------
-      deep_comp.setupNN(retrieval, expid,
-                      nHidden      = nHidden,
-                      nHLayers     = nHLayers,
-                      combinations = combinations,
-                      Input_const  = Input_const,
-                      Input_nnr    = Input_nnr,                                         
-                      Target       = Target,                      
-                      K            = K)  
+    # Test on DEEP BLUE Complement
+    # ---------------------------------------------  
+    if doTest_extra:
+        deep_comp = ABC_DEEP_COMP(giantFile,useLAND=False,noLANDref=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax)
+        if deep_comp.nobs >0:
+            # Initialize class for training/testing
+            # ---------------------------------------------
+            deep_comp.setupNN(retrieval, expid,
+                          nHidden      = nHidden,
+                          nHLayers     = nHLayers,
+                          combinations = combinations,
+                          Input_const  = Input_const,
+                          Input_nnr    = Input_nnr,                                         
+                          Target       = Target,                      
+                          K            = K)  
 
-      deep_comp.plotdir = deep_comp.outdir + '/DEEP_COMP/'
-      _testMODIS(deep_comp)
-      SummaryPDFs(deep_comp,varnames=['mRef660','mSre470'])  
+            deep_comp.plotdir = deep_comp.outdir + '/DEEP_COMP/'
+            _testMODIS(deep_comp)
+            SummaryPDFs(deep_comp,varnames=['mRef660','mSre470'])  
 
-      if combinations:
-          SummarizeCombinations(deep_comp,InputMaster,yrange=None,sortname='rmse')
+            if combinations:
+                SummarizeCombinations(deep_comp,InputMaster,yrange=None,sortname='rmse')
   

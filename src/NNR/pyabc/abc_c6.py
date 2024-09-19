@@ -685,6 +685,8 @@ class ABC_Land (LAND,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers >0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------
@@ -787,6 +789,8 @@ class ABC_Deep (DEEP,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers > 0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------
@@ -935,6 +939,8 @@ class ABC_DBDT (LAND,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers > 0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------
@@ -1073,6 +1079,8 @@ class ABC_DBDT_INT (LAND,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers > 0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------
@@ -1214,6 +1222,8 @@ class ABC_LAND_COMP (LAND,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers > 0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------
@@ -1369,6 +1379,8 @@ class ABC_DEEP_COMP (DEEP,NN,SETUP,ABC,EVAL):
         # --------------------------------------------
         if outliers > 0:
             self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
 
             # Reduce the Dataset
             # --------------------

@@ -879,9 +879,9 @@ class DEEP(GIANT):
     def __init__(self,filename,tymemax='20160701'): #'20160701'
         GIANT.__init__(self,filename,xVars=xDEEP,tymemax=tymemax)
         if self.sat == 'Aqua':
-            self.ident = 'mydl'
+            self.ident = 'mydd'
         elif self.sat == 'Terra':
-            self.ident = 'modl'         
+            self.ident = 'modd'         
         if type(filename) is str:
            fname = filename
         else:

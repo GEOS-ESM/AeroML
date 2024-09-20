@@ -400,7 +400,7 @@ class ABC(object):
                     print('+++++++ '+ name + 'not found in ' + filename)
                 first = False
 
-            if self.Ityme is not None:
+            if (self.Ityme is not None) and (name in self.__dict__):
                 self.__dict__[name] = self.__dict__[name][self.Ityme]
 
     def setCoxMunkBRF(self,albedo):

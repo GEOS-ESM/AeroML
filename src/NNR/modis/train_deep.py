@@ -197,7 +197,7 @@ if __name__ == "__main__":
         # if outlier were excluded, do an extra test with outliers included
         if (outliers > 0) and (K is None):
             deep_out = ABC_Deep(giantFile,aerFile=aerFile,slvFile=slvFile,
-                      Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
+                      useLAND=False,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,
                       cloud_thresh=cloud_thresh,outliers=-1,
                       logoffset=logoffset,laod=laod,scale=scale)
 

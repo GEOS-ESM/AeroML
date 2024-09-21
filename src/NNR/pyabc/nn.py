@@ -71,6 +71,16 @@ class NN(object):
         if self.surface == 'ocean':
             self.net.Wind = self.Wind
 
+        self.net.scale = self.scale
+        if self.scale:
+            self.net.scaler = self.scaler
+
+        self.net.lInput_nnr = self.lInput_nnr
+        if self.lInput_nnr is not None:
+            for vname in self.lInput_nner:
+                self.net.__dict__['scaler_l'+vname] = self.__dict__['scaler_l'+vname]
+
+
         # Indices for training set
         # ------------------------
         try:

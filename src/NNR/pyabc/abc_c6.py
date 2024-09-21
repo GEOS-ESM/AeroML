@@ -65,6 +65,7 @@ class SETUP(object):
                      K=None,
                      f_balance=0.50,
                      q_balance=True,
+                     q_balance_enhance=False,
                      minN=500,
                      fignore=[],
                      nbins = 6,                     
@@ -142,10 +143,26 @@ class SETUP(object):
         # --------------------------------------
         self.f_balance = f_balance
         self.q_balance = q_balance
+        self.q_balance_enhance = q_balance_enhance
         if q_balance:
             self.minN = minN
             self.fignore = fignore
             self.iValid = self.spc_target_balance(minN=minN,frac=f_balance,fignore=fignore,nbins=nbins)
+        elif q_balance_enhance:
+            self.fignore = fignore
+            np.random.seed(32768)  # so that we get the same permutation
+            P = np.random.permutation(self.nobs)
+            k = np.arange(self.nobs)
+            self.iTest = np.zeros([self.nobs]).astype(bool)
+            self.iTrain = np.ones([self.nobs]).astype(bool)
+            self.iTest[k[P[0:int(self.nobs*0.3)]]] = True
+            self.iTrain[k[P[0:int(self.nobs*0.3)]]] = False
+
+            self.spc_target_balance(frac=f_balance,fignore=fignore,nbins=nbins)
+            nadd = self.nobs - len(k)
+            self.iTest = np.append(self.iTest,np.zeros(nadd).astype(bool))
+            self.iTrain = np.append(self.iTrain,np.ones(nadd).astype(bool))
+
         elif f_balance > 0:
             self.iValid = self.spc_balance(int(self.nobs*0.35),frac=f_balance)
             self.nValid = np.sum(self.iValid)
@@ -169,11 +186,12 @@ class SETUP(object):
         # Initialize K-folding
         # --------------------
         if K is None:
-            self.iTest = np.ones([self.nobs]).astype(bool)
-            self.iTrain = np.ones([self.nobs]).astype(bool)
-            if (f_balance > 0) or q_balance:
-                self.iTest = ~self.iValid.copy()
-                self.iTrain = self.iValid.copy()
+            if not self.q_balance_enhance:
+                self.iTest = np.ones([self.nobs]).astype(bool)
+                self.iTrain = np.ones([self.nobs]).astype(bool)
+                if (f_balance > 0) or q_balance:
+                    self.iTest = ~self.iValid.copy()
+                    self.iTrain = self.iValid.copy()
         else:
             self.kfold(K=K)        
 

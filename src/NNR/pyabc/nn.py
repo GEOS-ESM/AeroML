@@ -77,7 +77,7 @@ class NN(object):
 
         self.net.lInput_nnr = self.lInput_nnr
         if self.lInput_nnr is not None:
-            for vname in self.lInput_nner:
+            for vname in self.lInput_nnr:
                 self.net.__dict__['scaler_l'+vname] = self.__dict__['scaler_l'+vname]
 
 

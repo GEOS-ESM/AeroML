@@ -485,6 +485,171 @@ class GIANT(object):
     I = np.any(Ispc,axis=1)
 
     return I
+#--
+  def spc_target_balance_enhance(self,frac=0.50,fignore=[],nbins=6):
+    """
+    Retrun indices of observations following a species and target AOD balancing.
+    We want to balance both according to species, and according to the value of the target AOD.
+    The idea is we want to equally train against high, moderate, and low AOD conditions,
+    and a variety of aerosol species mixtures.
+
+    minN = optional variable, if you want to set the minimum number that a size bin of species type can have
+    frac = fraction that defines whether a species dominates
+    fignore = list of species to ignore in species balance.  for land, we can ignore sea salt.
+    nbins = number of size bins to use
+    """
+
+    np.random.seed(32768) # so that we get the same permutation
+
+    # first divide up the data by species
+    nobs = len(self.lon)
+    I = np.zeros(nobs).astype(bool)
+    nspc = 5
+    Ispc = np.zeros([nobs,nspc]).astype(bool)
+    spclist = ['fdu','fss','fcc','fsu','fna']
+    for ispc,f in enumerate([self.fdu,self.fss,self.fcc,self.fsu]):
+
+      J = f>frac                      # all obs for which species dominate
+      J = J & ~I                      # only obs that haven't already been selected
+      Ispc[:,ispc] = J                # label these as dominated
+
+      I[J] = True                     # save the ones that have been labeled
+
+    # where none dominate
+    J = (self.fdu <= frac) & (self.fss <= frac) & (self.fcc <= frac) & (self.fsu <= frac)
+    J = J & ~I                      # only obs that haven't already been selected
+    Ispc[:,-1] = J
+
+    # get aTau distributions
+    tau = np.log(self.aTau550+self.logoffset)
+    tmin,tmax = tau.min(),tau.max()
+#    q = np.linspace(0,1,nbins+1)
+#    bine = np.quantile(tau,q)
+    t15 = np.quantile(tau,0.15)
+    t85 = np.quantile(tau,0.85)
+    bine = np.linspace(t15,t85,nbins-1)
+    bine = np.append(tmin,bine)
+    bine = np.append(bine,tmax)
+    Ibin = np.zeros([nobs,nspc,nbins]).astype(bool)
+    nbin = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        for ibin in range(nbins):
+            bl = bine[ibin]
+            bu = bine[ibin+1]
+            # get the index numbers for the species i'm looking at
+            kspc = np.arange(nobs)[Ispc[:,ispc]]
+            # figure out which obs fall into the size bin
+            if ibin == nbins - 1:
+                i = (tau[kspc] >= bl) & (tau[kspc] <= bu)
+            else:
+                i = (tau[kspc] >= bl) & (tau[kspc] < bu)
+            Ibin[kspc[i],ispc,ibin] = True
+            nbin[ispc,ibin] = np.sum(i)
+
+    # Balance the aTau distributions
+    # By repeating obs until we have
+    # the same number of obs in each bin
+    Ibin_balance = np.zeros([len(self.lon),nspc,nbins]).astype(bool)
+    nbin_balance = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        # find the maximum number of obs in a aTau bin
+        n = nbin[ispc,nbin[ispc,:]>0].max()
+
+        # duplicate obs in all the other bins to get up to this number
+        for ibin in range(nbins):
+            if nbin[ispc,ibin] < n:
+                nadd = n - nbin[ispc,ibin]
+                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
+                if nadd > nbin[ispc,ibin]:
+                    # Get a random permutation of the obs in this bin
+                    P = np.random.permutation(nbin[ispc,ibin])
+                    # Get the first nadd random samples
+                    naddT = 0
+                    kadd = []
+                    while naddT < nadd:
+                        kadd.append(k[P[0:nbin[ispc,ibin]]])
+                        naddT += nbin[ispc,ibin]
+
+                    k = kadd[:nadd]
+                else:
+                    # Get a random permutation of the obs in this bin
+                    P = np.random.permutation(nbin[ispc,ibin])
+                    # Get the first nadd random samples
+                    k = k[P[0:nadd]]
+
+                Iadd = np.zeros([nadd,nspc,nbins]).astype(bool)
+                Iadd[:,ispc,ibin] = True
+                Ibin_balance = np.append(Ibin_balance,Iadd)
+                nbin_balance[ispc,ibin] += nadd
+
+                Iadd = Iadd.squeeze()
+                self.iValid = np.append(self.iValid,Iadd)
+                self.iTrain = np.append(self.iTrain,Iadd)
+                self.nValid += nadd
+                self.nobs   += nadd
+
+                for var in self.Target:
+                    self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+                for var in self.Input:
+                    self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+
+    # Now balance across the species
+    # Enhance the number of obs in the aTau bins evenly
+    # to keep target balance
+    # not going to be exact here, but have them all the within 25%
+    # trying to keep as many obs as possible
+    nbin_spc = nbin_balance.sum(axis=1)
+    usespc = []
+    for spcname in spclist:
+        if spcname in fignore:
+            usespc.append(False)
+        else:
+            usespc.append(True)
+
+    nspc_min = nbin_spc[usespc].min()
+    nspc_frac = nbin_spc/nspc_min
+    close = 1.25
+    for ispc in range(nspc):
+        if (nspc_frac[ispc] > close) and (spclist[ispc] not in fignore):
+            # spread reduction evenly among number of bins
+            nbalance = int(nspc_min*close/nbins)
+            for ibin in range(nbins):
+                if nbin_balance[ispc,ibin] < nbalance:
+                    k = np.arange(nobs)[Ibin_balance[:,ispc,ibin]]
+                    nadd = nbalance - nbin_balance[ispc,ibin]
+                    if nadd > nbin_balance[ispc,ibin]:
+
+                        # Get a random permutation of the obs in this bin
+                        P = np.random.permutation(nbin_balance[ispc,ibin])
+                        # Get the first nadd random samples
+                        naddT = 0
+                        kadd = []
+                        while naddT < nadd:
+                            kadd.append(k[P[0:nbin_balance[ispc,ibin]]])
+                            naddT += nbin_balance[ispc,ibin]
+
+                        k = kadd[:nadd]
+                    else:
+                        # Get a random permutation of the obs in this bin
+                        P = np.random.permutation(nbin_balance[ispc,ibin])
+                        # Get the first nadd random samples
+                        k = k[P[0:nadd]]
+
+                    Iadd = np.zeros([nadd,nspc,nbins]).astype(bool)
+                    Iadd[:,ispc,ibin] = True
+                    Ibin_balance = np.append(Ibin_balance,Iadd)
+                    nbin_balance[ispc,ibin] += nadd
+
+                    Iadd = Iadd.squeeze()
+                    self.iValid = np.append(self.iValid,Iadd)
+                    self.iTrain = np.append(self.iTrain,Iadd)
+                    self.nValid += nadd
+                    self.nobs   += nadd
+
+                    for var in self.Target:
+                        self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+                    for var in self.Input:
+                        self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])                    
 
 #--
   def spc_balance(self,N,frac=0.50):
@@ -520,7 +685,27 @@ class GIANT(object):
 
 
     return I
+#--
+  def balance(self,N,frac=0.5):
+    """
+    Return indices of observations so that each species does not have more than
+    N observations. This is meant to be performed with a reduced dataset.
+    """
+    I = zeros(self.lon.shape).astype(bool)
+    random.seed(32768) # so that we get the same permutation
 
+    for f in (self.fdu,self.fss,self.fcc,self.fsu):
+
+      J = f>frac                      # all obs for which species dominate
+      n = len(self.lon[J])              # no. obs for this species
+      P = random.permutation(n)      # randomize obs for this species
+      m = min(n,N)                   # keep this many
+
+      K = I[J]
+      K[P[0:m]] = True
+      I[J] = K
+
+    return I
 #---
   def reduce(self,I):
     """

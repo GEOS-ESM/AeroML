@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     # flag to do both species and target AOD balancing
     q_balance = inputs['q_balance']
+    q_balance_enhance = inputs['q_balance_enhance']
 
     # minimum number of points to have in a size bin for balancing
     # this is an adhoc parameter, but if it's too small, no obs will make
@@ -170,6 +171,7 @@ if __name__ == "__main__":
                       lInput_nnr   = lInput_nnr,
                       f_balance    = f_balance,
                       q_balance    = q_balance,
+                      q_balance_enhance = q_balance_enhance,
                       minN         = minN,
                       fignore      = fignore,
                       nbins        = nbins)

@@ -4,6 +4,7 @@
 
 import numpy as np
 from   datetime import timedelta
+from   binObs_   import binobs2d, binobs3d, binobscnt3d
 
 def haversine(lat1, lon1, lat2, lon2):
         """
@@ -237,3 +238,57 @@ class swath_geo(object):
 
 
 # -----------------------------------------------------------------------------
+
+class ods_swath(object):
+    """
+    Returns lists of LEO satellite indices that are colocated
+    Using binObs to grid each on a grid with im lats and jm lons
+    Obs should occur within +/Dt minutes of each other
+
+    swath & ods objects must have the following attributes:
+        lon
+        lat
+        DT
+        nobs
+
+    """
+    def __init__(self,ods,swath,Dt=30):
+        self.Dt = Dt
+
+        self.coarseColocate(ods,swath)
+
+    def coarseColocate(self,ods,swath):
+        MISSING = 999.999
+        # grid times
+        otime = binobs2d(ods.lon,ods.lat,ods.DT,ods.im,ods.jm,MISSING)
+
+        lon = np.linspace(-180.,180.,ods.im,endpoint=False)
+        lat = np.linspace(-90.,90.,ods.jm)       
+        glat,glon = np.meshgrid(lat,lon)
+
+        I = otime != MISSING
+        otime = otime[I]
+        glon = glon[I]
+        glat = glat[I]
+        iGood = np.arange(ods.im*ods.jm)[I.ravel()]
+        nods = len(glat)
+
+
+        dtMax = self.Dt*2
+        dlMax = 0.5*360./ods.im 
+        self.swathMatches = []
+        self.odsMatches = []
+
+        for iods in np.arange(nods):
+            lon,lat,time,igood = glon[iods],glat[iods],otime[iods],iGood[iods]
+            
+            # Does satellite observe near the stations?
+            found = (np.abs(lon - swath.lon) < dlMax) & (np.abs(lat - swath.lat) < dlMax) & (np.abs(time - swath.DT) < dtMax)
+
+            if np.any(found):
+                self.swathMatches.append(np.arange(swath.nobs)[found])
+                self.odsMatches.append([igood])
+
+
+        self.nmatches = len(self.odsMatches)
+

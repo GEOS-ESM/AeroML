@@ -16,9 +16,12 @@
 
 ### Fixed
 
+- Minor fix associated with installation location of software.
+
 ### Changed
 
 - updated GMAOpyobs to latest v1.0.5
+- Update to ESMA_env v4.8.2 (Fixes for RHEL8 GMAO Machines)
 
 ## [v1.0.0] 2023-06-07
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-    Colocate MODIS and AERONET Obs - Create 'Giant Spreadsheet'
+    Colocate MODIS and VIIRS Obs - Create 'Giant Spreadsheet'
 """
 
 import os,sys
 from   pyabc import colocater
-from   pyobs.aeronet   import AERONET_L2, granules
 from   pyobs.vx04      import Vx04_L2, MISSING, BEST, CHANNELS, SDS
 from   glob            import glob
 from   optparse        import OptionParser   # Command-line args
@@ -17,6 +16,7 @@ from   netCDF4         import Dataset, stringtoarr, chartostring
 from   collections     import OrderedDict
 import ast
 from   scipy           import stats
+from   binObs_   import binobs2d, binobs3d, binobscnt3d
 
 CALCULATOR = {'mode': stats.mode,
               'mean': np.mean,
@@ -48,33 +48,22 @@ ALGOS = ['db_land',
 
 xMETA = ('nval-o','nval-l','nval-d','nval-a')
 
-xMETA_ANET =  ("Date",
-            "Time",
-            "Location",
-            "Longitude",
-            "Latitude",
-            "Elevation")
+xMETA_MOD = ("Longitude","Latitude","Date","Time")
 
-xMETA_MODIS = ( "ISO_DateTime",
+xMOD =  OrderedDict([("AOD0870"        , 'AOT_870'),
+                  ("AOD0660intrp"   , 'AOT_660'),
+                  ("AOD0550intrp"   , 'AOT_550'),
+                  ("AOD0470intrp"   , 'AOT_470'),
+                  ("AOD0440"        , 'AOT_440')])
+
+xMETA_VIIRS = ( "ISO_DateTime",
             "SolarZenith",
             "SensorZenith",
             "ScatteringAngle",
             "GlintAngle",
             "RelativeAzimuth")
 
-xANET =  OrderedDict([("AOD1640"    , 'AOT_1640'),
-                  ("AOD1020"        , 'AOT_1020'), 
-                  ("AOD0870"        , 'AOT_870'),
-                  ("AOD0670"        , 'AOT_670'),          
-                  ("AOD0660intrp"   , 'AOT_660'),
-                  ("AOD0550intrp"   , 'AOT_550'),
-                  ("AOD0500"        , 'AOT_500'),
-                  ("AOD0470intrp"   , 'AOT_470'),
-                  ("AOD0440"        , 'AOT_440'),
-                  ("AOD0410"        , 'AOT_412'),
-                  ("AOD0380"        , 'AOT_380'),
-                  ("AOD0340"        , 'AOT_340'),
-                  ("WaterVapor", 'Water')])
+mchannels = [440,470,550,660,870]
 
 xDT_LAND = OrderedDict([ ("QA-l",'qa_flag'),
         ("AOD0480corr-l",'aod'),
@@ -170,8 +159,8 @@ xDB_OCEAN = OrderedDict([ ("AOD0488dpbl-o",'aod'),
 
 class VIIRS(Vx04_L2):
     """ Does QA/QC selections for different VIIRS collections """
-    def __init__(self,l2_path,inst,algo,year,julday,
-                 cloud_thresh=0.70,
+    def __init__(self,l2_path,inst,algo,date,
+                 cloud_thresh=0.10,
                  glint_thresh=40.0,
                  scat_thresh=170.0,
                  only_good=True,
@@ -183,8 +172,24 @@ class VIIRS(Vx04_L2):
         elif 'NOAA' in inst:
             prod = 'VN{}AER{}'.format(inst[-2:],Algo)
 
-        Files = sorted(glob('{}/Level2/{}/{}/{}/{}/*nc'.format(l2_path,prod,coll,year,str(julday).zfill(3))))
-        Vx04_L2.__init__(self,Files,algo,
+        ds = date - timedelta(hours=2)
+        de = date + timedelta(hours=2)
+
+        Files = []
+        while ds <= de:
+            jday = ds.strftime('%j')
+            hh   = ds.strftime('%H')
+            year = ds.strftime('%Y')
+            Files += sorted(glob('{}/Level2/{}/{}/{}/{}/*A{}{}.{}*nc'.format(l2_path,prod,coll,year,jday,year,jday,hh)))
+            
+
+            ds += timedelta(hours=1)
+
+        if algo == 'DB_DEEP':
+            algo_ = 'DB_LAND'
+        else:
+            algo_ = algo
+        Vx04_L2.__init__(self,Files,algo_,
                               only_good=only_good,
                               SDS=SDS,
                               Verb=verbose)
@@ -235,23 +240,79 @@ class VIIRS(Vx04_L2):
         # Alias time variable
         # --------------------
         self.tyme    = self.Time
+        dt = self.tyme - date
+        DT = np.array([tt.total_seconds()/60 for tt in dt])
+        self.DT = DT
 # -----------------------------------------------------------------------------
 
-class AERONET(AERONET_L2):
-    """ Gets AERONET data """
+class MODIS(object):
+    """ Gets MODIS data from ODS files"""
 
-    def __init__(self,l2_path,date,version,verbose=0):
+    def __init__(self,ods_path,date,prod,inst,vnnr,im,jm,verbose=0):
+        self.im = im
+        self.jm = jm
+        self.mchannels = mchannels
+        #initialize varaibles to be read in
+        for ch in self.mchannels:
+            self.__dict__['odsAOT_'+str(ch)] = []
+
+        SDS = ['lon','lat','tyme','DT']
+        for sds in SDS:
+            self.__dict__[sds] = []
+
+        yyyymm = '{}'.format(date.strftime('Y%Y/M%m'))
+        yyyymm_hh = '{}'.format(date.strftime('%Y%m%d_%H00'))
+        Files = sorted(glob(ods_path+'/{}/nnr_{}.{}04_L2a.{}.{}z.ods'.format(yyyymm,vnnr,inst,prod,yyyymm_hh)))
         
-        Files = granules(date,bracket='both',RootDir=l2_path,Version=version.replace('.',''))
-        AERONET_L2.__init__(self,Files,Verbose=verbose,version=int(float(version)))
-        
-        if self.nobs > 0:
-            # this fixes the date format for version 3
-            self.Date = np.array(['-'.join(d.split(':')[-1::-1]) for d in self.Date])
+        for fname in Files:
+            nc = Dataset(fname)
+            print(fname)
+            if nc.dimensions['nbatches'].size > 0:
+                lev = nc.variables['lev'][:].ravel()
+                tau = nc.variables['obs'][:].ravel()
+                lon = np.array(nc.variables['lon'][:]).ravel()*0.01
+                lat = np.array(nc.variables['lat'][:]).ravel()*0.01
+                # get time
+                time = nc.variables['time'][:].ravel() 
+                tunits = nc.variables['time'].units.split()[2:]
+                t0 = isoparse(tunits[0]+'T'+tunits[1])
+                tyme= np.array([t0 + timedelta(minutes=int(tt)) for tt in time[~time.mask]])
+                dt = tyme - date
+                DT = np.array([tt.total_seconds()/60 for tt in dt])
 
-            iGood = self.AOT_550 >= 0
+                # get rid of masked values
+                lev = lev[~time.mask]
+                tau = tau[~time.mask]
+                lon = lon[~time.mask]
+                lat = lat[~time.mask]
 
-            self.reduce(iGood)
+                for ch in self.mchannels:
+                    i = lev == ch
+                    self.__dict__['odsAOT_'+str(ch)].append(tau[i])
+
+                # limit the lon and lat arrays
+                self.lon.append(lon[i])
+                self.lat.append(lat[i])
+                self.tyme.append(tyme[i])
+                self.DT.append(DT[i])
+
+                #alias
+                self.Longitude = self.lon
+                self.Latitude = self.lat
+
+        if len(self.tyme) > 0:
+            # concatenate
+            for sds in SDS:
+                self.__dict__[sds] = np.concatenate(self.__dict__[sds])
+           
+            for ch in self.mchannels:
+                self.__dict__['odsAOT_'+str(ch)] = np.concatenate(self.__dict__['odsAOT_'+str(ch)])
+
+            self.nobs = len(self.tyme)
+        else:
+            self.nobs = 0
+
+
 # -----------------------------------------------------------------------------
 class HOLDER(object):
     """empty container for MODIS data"""
@@ -269,11 +330,10 @@ def createNC(ofile,options):
 
     # Create global attributes
     nc.date_created = datetime.now().strftime('%Y-%m-%d')
-    nc.aeronet_data_type = "Level 2.0"
     nc.satellite_data_type = "VIIRS, on {} only".format(options.inst)
     nc.satellite_collection = "Collection {}".format(options.coll)
-    nc.aeronet_temporal_averaging = "+/- {} minutes".format(options.Dt)
-    nc.satellite_spatial_averaging = "{} km radius around AERONET site".format(options.Dx)
+    nc.temporal_window = "+/- {} minutes".format(options.Dt)
+    nc.ods_gridding = "nlon = {}, nlat = {} ".format(options.im,options.jm)
     nc.contact = 'Patricia Castellanos <patricia.castellanos@nasa.gov>'
 
     # create dimensions
@@ -291,14 +351,14 @@ def createNC(ofile,options):
                 if (attr != 'datatype') & (attr != 'dimensions'):
                     varobj.setncattr(attr,header[varname][attr])
 
-    for varname in xMETA_ANET+xMETA_MODIS:
+    for varname in xMETA_MOD + xMETA_VIIRS:
         varobj = nc.createVariable(varname,header[varname]['datatype'],header[varname]['dimensions'])
         for attr in header[varname]:
             if (attr != 'datatype') & (attr != 'dimensions'):
                 varobj.setncattr(attr,header[varname][attr])
 
 
-    for vl in list(xANET.keys())+list(xDT_LAND.keys())+list(xDB_LAND.keys())+list(xDT_OCEAN.keys())+list(xDB_OCEAN.keys()):
+    for vl in list(xMOD.keys())+list(xDT_LAND.keys())+list(xDB_LAND.keys())+list(xDT_OCEAN.keys())+list(xDB_OCEAN.keys()):
         for calc in ['mode','mean','sdev','cval']:
             # don't fuss if it doesn't exist in header
             try:
@@ -315,40 +375,51 @@ def createNC(ofile,options):
 
     return nc
 # -----------------------------------------------------------------------------
-def writeMETA(iob,nc,algo,anet,mod,anetmatch,modmatch):
+def writeMETA(iob,nc,algo,mod,viir,modmatch,viirmatch):
 
-    for varname in xMETA_ANET:
-        varobj = nc.variables[varname]
-        vardata = anet.__dict__[varname]
-        if varname in ['Location','Date','Time']:
-            varobj[iob] = stringtoarr(vardata[anetmatch[0]],45)
-        else:
-            varobj[iob] = vardata[anetmatch[0]]
-
-    varobj = nc.variables['nval_AOD0550{}'.format(ALGO_ALIAS['aeronet'])]
-    varobj[iob] = len(anetmatch)
-
-    for varname in xMETA_MODIS:
+    for varname in xMETA_VIIRS:
         varobj = nc.variables[varname]
         if varname == 'ISO_DateTime':
-            vardata = mod.__dict__[algo].tyme[modmatch]
+            vardata = viir.__dict__[algo].tyme[viirmatch]
             dt      = np.array([(t-vardata.min()).total_seconds() for t in vardata])
             isotime = vardata.min() + timedelta(seconds=dt.mean())
             varobj[iob] = stringtoarr(isotime.isoformat(),45)
 
         else:
-            vardata = mod.__dict__[algo].__dict__[varname][modmatch]
+            vardata = viir.__dict__[algo].__dict__[varname][viirmatch]
             varobj[iob] = vardata.mean()
 
-    varobj = nc.variables['nval_AOD0550{}'.format(ALGO_ALIAS[algo])]
-    varobj[iob] = len(modmatch)
 
 # -----------------------------------------------------------------------------
-def writeANET(iob,nc,anet,anetmatch):
+def writeMOD(iob,nc,mod,modmatch):
 
-    # write AERONET variables
-    for vl in xANET:
-        for calc in ['mode','mean','sdev']:
+    # write MODIS variables
+    # grid first
+
+    for varname in xMETA_MOD:
+        varobj = nc.variables[varname]
+        if varname in ['Date','Time']:
+            odsdata = mod.DT
+            vardata = binobs2d(mod.lon,mod.lat,odsdata,mod.im,mod.jm,MISSING)
+            vardata = vardata.ravel()[np.concatenate(modmatch)]
+            nobs = len(vardata)
+
+            tyme = np.array([mod.nymd + timedelta(minutes=int(dt)) for dt in vardata])
+            if varname == 'Date':
+                wdata = np.array([tt.strftime('%Y-%m-%d') for tt in tyme])
+            else:
+                wdata = np.array([tt.strftime('%H:%M') for tt in tyme])
+
+            varobj[iob:iob+nobs] = np.array([stringtoarr(w,45) for w in wdata])
+        else:
+            odsdata = mod.__dict__[varname]
+            vardata = binobs2d(mod.lon,mod.lat,odsdata,mod.im,mod.jm,MISSING)
+            vardata = vardata.ravel()[np.concatenate(modmatch)]
+            nobs = len(vardata)            
+            varobj[iob:iob+nobs] = vardata
+
+    for vl in xMOD:
+        for calc in ['mean']:
             # don't fuss if it doesn't exist in header
             found = False
             try:
@@ -359,18 +430,16 @@ def writeANET(iob,nc,anet,anetmatch):
                 pass
 
             if found:
-                vardata = anet.__dict__[xANET[vl]][anetmatch]
+                odsdata = mod.__dict__['ods'+xMOD[vl]]
+                vardata = binobs2d(mod.lon,mod.lat,odsdata,mod.im,mod.jm,MISSING)
+                vardata = vardata.ravel()[np.concatenate(modmatch)]
 
-                if calc == 'mode':
-                    calculator = CALCULATOR[calc]
-                    varobj[iob] = calculator(vardata).mode                    
-                else:
-                    calculator = CALCULATOR[calc]
-                    varobj[iob] = calculator(vardata)
+                nobs = len(vardata)
+                varobj[iob:iob+nobs] = vardata
 
 # -----------------------------------------------------------------------------
 
-def writeMOD(iob,nc,algo,mod,mmatch,dist):
+def writeVIIRS(iob,nc,algo,viir,vmatch):
     if algo == 'dt_land'  : xVARS = xDT_LAND
     if algo == 'db_land'  : xVARS = xDB_LAND
     if algo == 'db_deep'  : xVARS = xDB_LAND
@@ -378,7 +447,7 @@ def writeMOD(iob,nc,algo,mod,mmatch,dist):
     if algo == 'db_ocean' : xVARS = xDB_OCEAN
     # Write ocean variables
     for vl in xVARS:
-        for calc in ['mode','mean','sdev','cval']:
+        for calc in ['mode','mean','sdev']:
             # don't fuss if it doesn't exist in header
             found = False
             try:
@@ -392,35 +461,32 @@ def writeMOD(iob,nc,algo,mod,mmatch,dist):
                 dataname = xVARS[vl]
                 if dataname == 'reflectance':
                     #figure out correct index
-                    channels = mod.__dict__[algo].rChannels
+                    channels = viir.__dict__[algo].rChannels
                     ch = int(vl[4:8])
                     ich = np.argmin(np.abs(channels-ch))
-                    vardata = mod.__dict__[algo].__dict__[dataname][:,ich]
-                    vardata = vardata[mmatch]
+                    vardata = viir.__dict__[algo].__dict__[dataname][:,ich]
+                    vardata = vardata[vmatch]
                 elif dataname == 'sfc_reflectance':
                     # Figure out correct index
                     channels = np.array(SCHANNELS[algo.upper()])
                     ch = int(vl[6:10])
                     ich = np.argmin(np.abs(channels-ch))
-                    vardata = mod.__dict__[algo].__dict__[dataname][:,ich]
-                    vardata = vardata[mmatch]
+                    vardata = viir.__dict__[algo].__dict__[dataname][:,ich]
+                    vardata = vardata[vmatch]
                 elif dataname == 'aod':
                     #figure out correct index
-                    channels = np.array(mod.__dict__[algo].channels)
+                    channels = np.array(viir.__dict__[algo].channels)
                     ch = int(vl[3:7])
                     ich = np.argmin(np.abs(channels-ch))
-                    vardata = mod.__dict__[algo].__dict__[dataname][:,ich]
-                    vardata = vardata[mmatch]                            
+                    vardata = viir.__dict__[algo].__dict__[dataname][:,ich]
+                    vardata = vardata[vmatch]                            
                 else:
-                    vardata = mod.__dict__[algo].__dict__[dataname]
-                    vardata = vardata[mmatch]                               
+                    vardata = viir.__dict__[algo].__dict__[dataname]
+                    vardata = vardata[vmatch]                               
 
                 # calculate value and write to file
                 
-                if calc == 'cval':
-                    imatch = np.argmin(dist)
-                    varobj[iob] = vardata[imatch]
-                elif calc == 'mode':
+                if calc == 'mode':
                     calculator = CALCULATOR[calc]
                     varobj[iob] = calculator(vardata).mode                    
                 else:
@@ -430,7 +496,7 @@ def writeMOD(iob,nc,algo,mod,mmatch,dist):
 
 
 # -----------------------------------------------------------------------------
-def writeNC(ofile,algo,mod,anet,match,options):
+def writeNC(ofile,algo,viir,mod,match,options):
     """write giant spreadsheet file"""
 
     # open file to write to
@@ -444,46 +510,45 @@ def writeNC(ofile,algo,mod,anet,match,options):
     
 
     if match.__dict__[algo].nmatches > 0:
-        anetmatch = match.__dict__[algo].stationMatches
-        modmatch  = match.__dict__[algo].swathMatches
-        distance  = match.__dict__[algo].distance
-        for dist,mmatch,amatch in zip(distance,modmatch,anetmatch):
-            if (len(amatch) >= 2) & (len(mmatch) >= 5):
-                #write META variables
-                writeMETA(iob,nc,algo,anet,mod,amatch,mmatch)
+        modmatch = match.__dict__[algo].odsMatches
+        viirmatch  = match.__dict__[algo].swathMatches
 
-                # write AERONET variables
-                writeANET(iob,nc,anet,amatch)
-
-                # write LAND, DEEP, or OCEAN variables
-                writeMOD(iob,nc,algo,mod,mmatch,dist)
+        # write AERONET variables
+        writeMOD(iob,nc,mod.__dict__[algo],modmatch)
+        for mmatch,vmatch in zip(modmatch,viirmatch):
+            #write META variables
+            writeMETA(iob,nc,algo,mod,viir,mmatch,vmatch)
 
 
+            # write LAND, DEEP, or OCEAN variables
+            writeVIIRS(iob,nc,algo,viir,vmatch)
 
-                iob +=1
+            iob +=1
+
 
 
     nc.close()
 
 if __name__ == '__main__':
-    # AERONET temporal averaging interval in minutes (i.e. +/ 30 min)
+    # Temporal colocation (i.e. +/ 30 min)
     Dt = 30
-    # MODIS averaging radius around AERONET site in km
-    Dx = 27.5
+    # spatial resolution of gridding for overlaps
+    Dx = 0.1  
 
     # Defaults
     outpath  = '/nobackup/NNR/Training/'
-    version  = '3.0'
+    version  = '1.0'
 
     l2_path  = '/nobackup/VIIRS/'
     inst     = 'SNPP'
     coll     = '002'
 
-    anet_path = '/nobackup/AERONET/Level2/ver3'
+    mod_path = '/nobackup/NNR/netfiles_py3/nnr_043_MYD04_061_1hr/Level2/'
+    vnnr     = '043'
 
-    isotime = '2012-03-04'
+    isotime = '2019-08-01'
     endisotime = None #'2010-12-31'
-    DT      = 2  
+    DT      = 1
     dType   = 'days'
     verbose = False
     overwrite  = False
@@ -501,9 +566,9 @@ if __name__ == '__main__':
                       help="VIIRS Level2 Path (default=%s)"\
                            %l2_path )
 
-    parser.add_option("-a", "--anet_path", dest="anet_path", default=anet_path,
-                      help="AERONET Level2 Path (default=%s)"\
-                           %anet_path )    
+    parser.add_option("-a", "--mod_path", dest="mod_path", default=mod_path,
+                      help="MODIS Level2 (ods) Path (default=%s)"\
+                           %mod_path )    
 
     parser.add_option("-i", "--inst", dest="inst", default=inst,
                       help="Instrument (default=%s)"\
@@ -542,11 +607,11 @@ if __name__ == '__main__':
                            %overwrite ) 
 
     parser.add_option("-X", "--Dx", dest="Dx", default=Dx,
-                      help="Radius around AERONET site in km (default=%s)"\
+                      help="Resolution for gridding overlaps (default=%s)"\
                            %Dx ) 
 
     parser.add_option("-T", "--Dt", dest="Dt", default=Dt,
-                      help="time interval for AERONET temporal averaging in minutes (default=%s)"\
+                      help="time interval for colocation in minutes (default=%s)"\
                            %Dt )                             
 
     (options, args) = parser.parse_args()
@@ -555,7 +620,7 @@ if __name__ == '__main__':
 
     if options.endisotime is None:
         if options.dType == 'days':
-            enymd =  nymd + timedelta(days=int(options.DT)) - timedelta(days=1)
+            enymd =  nymd + timedelta(days=int(options.DT)) - timedelta(hours=1)
         if options.dType == 'months':
             enymd = nymd + relativedelta(months=options.DT)
     else:
@@ -567,48 +632,57 @@ if __name__ == '__main__':
     if not os.path.exists(outpath):
         os.makedirs(outpath)
 
-    # outfile name
-    ofile = '{}/giant_C{}_10km_{}_v{}_{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,nymd.strftime('%Y%m%d'),enymd.strftime('%Y%m%d'))
-    if os.path.exists(ofile) and (options.overwrite is False):
-        raise Exception('Outfile {} exists. Set --overwrite flag to clobber file'.format(ofile))    
+    options.append = False       
 
-    options.append = False        
+    # grid resolution
+    im = int(360. / options.Dx)
+    jm = int(180. / options.Dx + 1)   
+    options.im = im
+    options.jm = jm
 
     while nymd <= enymd:
         julday   = nymd - datetime(nymd.year,1,1) + timedelta(days=1)
         print('++++Working on ',nymd.strftime('%Y-%m-%d'),' (julday={})'.format(julday.days))
 
-        # get aeronet data
-        anet = AERONET(options.anet_path,nymd,options.version,verbose=options.verbose)
 
-        mod  = HOLDER()
+        # outfile name
+        ofile = '{}/giant_myd_C{}_{}_v{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,
+                                                       nymd.strftime('%Y%m%d%H'))
+        if os.path.exists(ofile) and (options.overwrite is False):
+            raise Exception('Outfile {} exists. Set --overwrite flag to clobber file'.format(ofile))        
+
+        # get MODIS data
+        mod = HOLDER()
+        for algo in ALGOS:
+            mod.__dict__[algo] = MODIS(options.mod_path,nymd,algo[3:],'MYD',vnnr,im,jm,verbose=options.verbose)
+        
+        viir  = HOLDER()
         match = HOLDER()
-        if anet.nobs > 0:
-            # get modis data for each algorithm
-            mod  = HOLDER()
-            match = HOLDER()
-            for algo in ALGOS:
-                mod.__dict__[algo] = VIIRS(options.l2_path,options.inst,algo.upper(),nymd.year,julday.days,
+        for algo in ALGOS: 
+            if mod.__dict__[algo].nobs > 0:
+                # get viirs data 
+                viir.__dict__[algo] = VIIRS(options.l2_path,options.inst,algo.upper(),nymd,
                         coll=options.coll,
                         cloud_thresh=0.7,
                         verbose=options.verbose)                
 
                 # do colocation
-                if mod.__dict__[algo].nobs > 0:
-                    match.__dict__[algo] = colocater.station_swath(anet,mod.__dict__[algo],Dt=options.Dt,Dx=options.Dx)
+                if viir.__dict__[algo].nobs > 0:
+                    match.__dict__[algo] = colocater.ods_swath(mod.__dict__[algo],viir.__dict__[algo],Dt=options.Dt)
                 else:
                     match.__dict__[algo] = HOLDER()
                     match.__dict__[algo].nmatches = 0
                     
-        else:
-            for algo in ALGOS:
+            else:
                 match.__dict__[algo] = HOLDER()
                 match.__dict__[algo].nmatches = 0
-                mod.__dict__[algo] = HOLDER()
-                mod.__dict__[algo].nobs = 0
+                viir.__dict__[algo] = HOLDER()
+                viir.__dict__[algo].nobs = 0
 
         # Write matches to file
         for algo in ALGOS:
-            writeNC(ofile,algo,mod,anet,match,options)
+            mod.__dict__[algo].nymd = nymd
+            writeNC(ofile,algo,viir,mod,match,options)
 
-        nymd += timedelta(days=1)
+        options.append = False
+        nymd += timedelta(hours=1)

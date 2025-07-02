@@ -816,7 +816,7 @@ class GIANT(object):
     self.fsu  = s.SUEXTTAU / s.TOTEXTTAU
 
     if 'fni' in spcvars:
-        self.fni = s.NIETTAU / s.TOTEXTTAU
+        self.fni = s.NIEXTTAU / s.TOTEXTTAU
 
     if FineMode:
       TOTEXTTAU = s.TOTEXTTAU[:]

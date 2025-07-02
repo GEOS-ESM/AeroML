@@ -6,6 +6,7 @@
 # -------------------------------------
   esma_add_subdirectory(Shared)
   esma_add_subdirectory(NNR)
+  esma_add_subdirectory(Applications)
 
 # Install 'abc' package
 # ---------------------

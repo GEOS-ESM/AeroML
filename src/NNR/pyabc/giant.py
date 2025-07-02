@@ -825,7 +825,7 @@ class GIANT(object):
     self.fsu  = s.SUEXTTAU / s.TOTEXTTAU
 
     if 'fni' in spcvars:
-        self.fni = s.NIETTAU / s.TOTEXTTAU
+        self.fni = s.NIEXTTAU / s.TOTEXTTAU
 
     if FineMode:
       TOTEXTTAU = s.TOTEXTTAU[:]
@@ -905,7 +905,8 @@ class GIANT(object):
       savez(npzFile,**kwds)
 
   def sampleGEOSIT(self,slv_x='tavg1_2d_slv_Nx',aer_x='tavg1_2d_aer_Nx',
-                  FineMode=False,npzFile=None,Verbose=False,onlyVars=('U10M','V10M')):
+                  FineMode=False,npzFile=None,Verbose=False,onlyVars=('U10M','V10M'),
+                  from_mass=False):
 
     if onlyVars is not None:
         self.sampleFile(slv_x,onlyVars=onlyVars, Verbose=Verbose)
@@ -921,13 +922,16 @@ class GIANT(object):
     del self.sample
 
     spcvars = ('fdu','fss','fcc','fsu','fni')
-    if aer_x is not None:
-        self.speciate(aer_x,spcvars=spcvars,FineMode=FineMode,Verbose=Verbose)
+    if from_mass:
+        self.calcAOP(aer_x,spcvars=spcvars,Verbose=Verbose)
+    else:
+        if aer_x is not None:
+            self.speciate(aer_x,spcvars=spcvars,FineMode=FineMode,Verbose=Verbose)
 
-    if aer_x is not None:
-        labels = labels + spcvars
-        if FineMode:
-            labels = labels + ('fduf','fssf')
+        if aer_x is not None:
+            labels = labels + spcvars
+            if FineMode:
+                labels = labels + ('fduf','fssf')
 
     kwds = {}
     for varname in labels:
@@ -935,6 +939,19 @@ class GIANT(object):
 
     if npzFile is not None:
       savez(npzFile,**kwds)
+
+  def calcAOP(self,aer_x,spcvars=('fdu','fss','fcc','fsu'),Verbose=False):
+    """
+    Use GAAS to derive fractional composition.
+    """
+    onlyVars = ('TOTEXTTAU',
+                'DUEXTTAU',
+                'SSEXTTAU',
+                'BCEXTTAU',
+                'OCEXTTAU',
+                'SUEXTTAU')
+    if 'fni' in spcvars:
+        onlyVars += ('NIEXTTAU',)     
 
   def sampleMCD43C(self,npzFile=None,Verbose=False):
     from pyabc.mcd43c import MCD43C

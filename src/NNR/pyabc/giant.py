@@ -499,24 +499,35 @@ class GIANT(object):
 
 
   def sampleMERRA(self,slv_x='tavg1_2d_slv_Nx',aer_x='tavg1_2d_aer_Nx',
-                  FineMode=False,npzFile=None,Verbose=False):
-    self.sampleFile(slv_x,onlyVars=('U10M','V10M'), Verbose=Verbose)
-    self.u10m = self.sample.U10M
-    self.v10m = self.sample.V10M
-    self.wind = sqrt(self.sample.U10M[:]**2 + self.sample.V10M[:]**2)
+                  FineMode=False,npzFile=None,Verbose=False,onlyVars=('U10M','V10M')):
+
+    if onlyVars is not None:
+        self.sampleFile(slv_x,onlyVars=onlyVars, Verbose=Verbose)
+
+    labels = ()
+    for varname in onlyVars:
+        self.__dict__[varname.lower()] = self.sample.__dict__[varname]
+        labels = labels + (varname.lower(),)
+
+    if 'U10M' in onlyVars:
+        self.wind = sqrt(self.sample.U10M[:]**2 + self.sample.V10M[:]**2)
 
     del self.sample
 
-    self.speciate(aer_x,FineMode=FineMode,Verbose=Verbose)
+    if aer_x is not None:
+        self.speciate(aer_x,FineMode=FineMode,Verbose=Verbose)
+
+    if aer_x is not None:
+        labels = labels + ('fdu','fss','fcc','fsu')
+        if FinMode: 
+            labels = labels + ('fduf','fssf')
+
+    kwds = {}
+    for varname in labels:
+        kwds[varname] = self.__dict__[varname]
 
     if npzFile is not None:
-      if FineMode:
-        savez(npzFile,wind=self.wind,u10m=self.u10m,v10m=self.v10m,
-                    fdu=self.fdu,fss=self.fss,fcc=self.fcc,fsu=self.fsu,
-                    fduf=self.fduf,fssf=self.fssf)     
-      else:
-        savez(npzFile,wind=self.wind,u10m=self.u10m,v10m=self.v10m,
-                    fdu=self.fdu,fss=self.fss,fcc=self.fcc,fsu=self.fsu)     
+      savez(npzFile,**kwds)
 
   def sampleMCD43C(self,npzFile=None,Verbose=False):
     from pyabc.mcd43c import MCD43C

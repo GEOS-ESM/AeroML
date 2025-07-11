@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-   Precalculate Cox-Munk albedo from sampled wind parameters according to giant file
-   Requires MERRA-2 npz file to be present
-   The default is to calculate CX albedo at [470. ,550. ,660. ,870. ,1200.,1600.,2100.]
-   This could be changed by supplying calcCoxMunk with the channels option
+   Sample MERRA-2 according to giant file
 """
 
 import os, sys
@@ -20,10 +17,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     outDir = os.path.dirname(args.giantFile)
     fname = os.path.basename(args.giantFile)
-    npzFile = outDir + '/' + fname[:-3] + '_CxAlbedo.npz'
-    windFile = outDir + '/' + fname[:-3] + '_MERRA2.npz'
+    npzFile = outDir + '/' + fname[:-3] + '_MERRA2_TQV_TO3.npz'
 
     g = GIANT(args.giantFile)
-    g.calcCoxMunk(windFile=windFile,npzFile=npzFile)
+    g.sampleMERRA(npzFile=npzFile,Verbose=False,aer_x=None,onlyVars=('TQV','TO3'))
 
 

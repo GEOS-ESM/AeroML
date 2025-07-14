@@ -1,0 +1,102 @@
+# inputs
+
+dict(
+# giantFile
+    giantFile = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*nc'],
+    aerFile   = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_2*npz'],
+    slvFile   = ['/nobackup/NNR/Training/061_py3_ocean_bluech/061/giant_C061_10km_Terra_v3.0_20*MERRA2_T*npz'],
+
+# tymemax sets a truncation date when reading in giant file
+# string with format YYYYMMDD
+# None reads the entire datarecord
+    tymemax = None,
+
+# how many std dev to use for outlier removal. If < 0, don't do outlier removal
+# default is 3
+    outliers = 3,    
+
+# number of hidden layers
+    nHLayers     = 1,
+
+# number of nodes in hidden layers
+# None uses the default of 200 coded in nn.py
+    nHidden      = None,
+
+# do training on combinations of the inputs
+    combinations = False,
+
+# number of K-folds or training
+# if None does not do K-folding, trains on entire dataset
+    K            = None,
+
+# Flags to Train or Test the DARK TARGET DATASET
+    doTrain      = True,
+    doTest       = True,
+
+# experiment name
+    expid        = 'ocean.mod_v043.inputs',
+
+# NN target variable name
+    Target       = ['aTau550','aAEfitm'],
+
+# surface albedo variable name
+# options are None, CoxMunkLUT, or CxAlbedo
+# if CoxMunkLUT one needs to provide the coxmunk_lut option to ABC_Ocean,
+# otherwise default is used (default = '/nobackup/NNR/Misc/coxmunk_lut.npz')
+# if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
+# ['CxAlbedo']
+    Albedo       = None,
+
+# Inputs that are always included
+# this can be None
+    Input_const = None,
+
+# Inputs that can be varied across combinations
+# if combinations flag is False, all of these inputs are used
+# if combinations flag is True, all possible combinations of these inputs
+# are tried
+    Input_nnr    = ['lSolarZenith','lScatteringAngle', 'lGlintAngle',
+                    'lfdu','lfcc','lfss',
+                    'lmRef412','lmRef550','lmRef870','lmRef1200','lmRef2100'],
+
+
+# Inputs I want to the the log-transform of
+    lInput_nnr = ['SolarZenith','ScatteringAngle', 'GlintAngle',
+                  'mRef412','mRef440','mRef470','mRef550','mRef660', 'mRef870','mRef1200','mRef1600','mRef2100',
+                  'fdu','fcc','fss'],
+
+
+# Additional variables that the inputs are filtered by
+# standard filters are hardcoded in the abc_c6.py scripts
+    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'],
+
+# fraction that defines whether a pixel is dominated by a species
+# if not set as an input default is 0.5
+# if less than 0, will not do balancing
+    f_balance = 0.5,
+
+# flag to do both species and target AOD balancing
+# default is True
+# minN is the minimum number of points in a size bin
+# if this is too small, very few obs will make it through
+# default is 500
+    q_balance = True,
+    minN = 500,
+    fignore =['fcc','fss','fdu'],
+    nbins = 6, 
+
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
+    cloud_thresh = 0.7,
+
+# take natural log of target aod
+# default is true
+    laod = True,
+
+# offset to protect against negative numbers.
+# detault is 0.01
+    logoffset = 0.01,
+
+# standard scale the targets
+    scale = True,
+) 

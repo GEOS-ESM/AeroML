@@ -4,10 +4,10 @@
 """
 
 import os, sys
-from   pyabc.abc_viirs         import ABC_DB_Land, _trainMODIS, _testMODIS, flatten_list
+from   pyabc.abc_viirs         import ABC_DB_Deep, _trainMODIS, _testMODIS, flatten_list
 from   pyabc.abc_c6_aux           import SummarizeCombinations
-import argparse
 from   glob                    import glob
+import argparse
 
 if __name__ == "__main__":
 
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # read in dictionary of input parameters
     s = open(args.inputs).read()
     inputs = eval(s)
-
+    
     # --------------
     # Setup Inputs
     # -------------
@@ -32,10 +32,8 @@ if __name__ == "__main__":
 
     aerFile = []
     for aFile in inputs['aerFile']:
-        aerFile += sorted(glob(aFile))    
-    
+        aerFile += sorted(glob(aFile))
 
-  
     # tymemax sets a truncation date when reading in giant file
     # string with format YYYYMMDD
     # None reads the entire datarecord
@@ -56,7 +54,7 @@ if __name__ == "__main__":
     combinations = inputs['combinations']
 
     # NN target variable names
-    Target       = inputs['Target']
+    Target     = inputs['Target']
 
     # surface albedo variable name
     # options are None, MCD43C1, MOD43BClimAlbedo  
@@ -64,7 +62,7 @@ if __name__ == "__main__":
 
     # number of K-folds or training
     # if None does not do K-folding, trains on entire dataset
-    K            = inputs['K']
+    K            = inputs['K'] 
 
     # Flags to Train of Test the DEEP BLUE DATASET
     doTrain      = inputs['doTrain']
@@ -88,7 +86,7 @@ if __name__ == "__main__":
 
     # Additional variables that the inputs are filtered by
     # standard filters are hardcoded in the abc_c6.py scripts
-    aFilter      = inputs['aFilter']
+    aFilter      = inputs['aFilter'] 
 
     # fraction that defines whether a pixel is domniated by a species
     f_balance = inputs['f_balance']
@@ -102,11 +100,11 @@ if __name__ == "__main__":
     # it through balancing procedure
     minN = inputs['minN']
 
-    # ignore a species when doing species balancing step 
+    # ignore a species when doing species balancing step
     # is spc_aod_balance
     # ignore SS dominated over land because these obs are so few
     fignore = inputs['fignore']
-    
+
     # number of size bins to use in aod balancing
     # default is 6
     nbins = inputs['nbins']
@@ -145,9 +143,9 @@ if __name__ == "__main__":
         sat = giantFile[0].split('_')[-4]
 
     if sat == 'SNPP':
-        retrieval    = 'VS_DB_LAND'
+        retrieval    = 'VS_DB_DEEP'
     if sat == 'NOAA20':
-        retrieval    = 'VN20_DB_LAND'
+        retrieval    = 'VN20_DB_DEEP'
 
     expid        = '{}_{}'.format(retrieval,expid)
 
@@ -157,12 +155,12 @@ if __name__ == "__main__":
         InputMaster = Input_nnr
 
     # Train/Test on full dataset
-    # -------------------------------------
-    if doTrain or doTest:
-        deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
-                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale)  
+    # -------------------------------------  
+    deep = ABC_DB_Deep(giantFile,aerFile=aerFile,Albedo=Albedo,verbose=1,
+                       aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                       algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale) 
 
+    if doTrain or doTest:
         # Initialize class for training/testing
         # ---------------------------------------------
         deep.setupNN(retrieval, expid,
@@ -181,6 +179,7 @@ if __name__ == "__main__":
                         fignore      = fignore,
                         nbins        = nbins)
 
+
     # Do Training and Testing
     # ------------------------
     if doTrain:
@@ -191,7 +190,7 @@ if __name__ == "__main__":
 
         # if outlier were excluded, do an extra test with outliers included
         if (outliers > 0) and (K is None):
-            deep_out = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
+            deep_out = ABC_DB_Deep(giantFile,aerFile=aerFile,Albedo=Albedo,
                     verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
                     algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
 

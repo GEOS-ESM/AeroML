@@ -67,8 +67,19 @@ class NN(object):
         self.net.InputNames = self.Input
         self.net.TargetNames = self.Target
         self.net.laod = self.laod
+        self.net.logoffset = self.logoffset
         if self.surface == 'ocean':
             self.net.Wind = self.Wind
+
+        self.net.scale = self.scale
+        if self.scale:
+            self.net.scaler = self.scaler
+
+        self.net.lInput_nnr = self.lInput_nnr
+        if self.lInput_nnr is not None:
+            for vname in self.lInput_nnr:
+                self.net.__dict__['scaler_l'+vname] = self.__dict__['scaler_l'+vname]
+
 
         # Indices for training set
         # ------------------------
@@ -84,6 +95,8 @@ class NN(object):
 
         # Train
         # -----
+#        bounds = [-1000,1000]
+#        maxfun = 10000
         bounds = [bounds]*self.net.conec.shape[0]
         if self.verbose>0:
             print("Starting training with %s inputs and %s targets"\
@@ -108,10 +121,14 @@ class NN(object):
 
         return self.net.test(inputs,targets,iprint=iprint,filename=fname)
         
-    def eval(self,I=None):
+    def eval(self,I=None,noscale=False):
         if I is None: I = self.iValid
         inputs = self.getInputs(I)
-        return self.net(inputs)
+        results = self.net(inputs)
+        if self.scale:
+            if noscale:
+                results = self.scaler.inverse_transform(results)
+        return results
 
     __call__ = eval
 
@@ -149,8 +166,7 @@ class NN(object):
         Splits input dataset into K training and testing subsets.
         Only data with an iValid Q/C flag is considered.
         """
-        n = self.lon.size
-        self.kf = KFold(n_splits=K, shuffle=True, random_state=n)
+        self.kf = KFold(n_splits=K, shuffle=True, random_state=self.nobs)
 
 
     def getInputs(self,I,Input=None):
@@ -181,7 +197,7 @@ class NN(object):
             inputs.shape = (inputs.shape[0],1)            
         return inputs
     
-    def getTargets(self,I):
+    def getTargets(self,I,noscale=False):
         """
         Given a set of indices *I*, return the corresponding
         targets for a neural net evaluation:
@@ -189,15 +205,22 @@ class NN(object):
         """
         var = self.Target[0]
         if self.laod and ('Tau' in var):
-            targets = log(self.__dict__[var][I] + 0.01)
+            targets = log(self.__dict__[var][I] + self.logoffset)
         else:
             targets = self.__dict__[var][I]
 
         for var in self.Target[1:]:
             if self.laod and ('Tau' in var):
-                targets = cat[targets,log(self.__dict__[var][I] + 0.01)]
+                targets = cat[targets,log(self.__dict__[var][I] + self.logoffset)]
             else:
                 targets = cat[targets,self.__dict__[var][I]]
+
+        if self.scaler is not None:
+            if not noscale:
+                if self.nTarget == 1:
+                    targets = self.scaler.transform(targets.reshape(-1,1)).squeeze()
+                else:
+                    targets = self.scaler.transform(targets)
 
         return targets
  
@@ -209,13 +232,15 @@ class NN(object):
         if I is None: I = self.iValid # All data by default
         results = self.eval(I)
         targets = self.getTargets(I)
+        if self.scale:
+            targets = self.scaler.inverse_transform(targets)
         if self.laod:
-            formatter = aodFormat()
+            formatter = aodFormat(self.logoffset)
         else:
             formatter = None
         if bins == None:
             if self.laod:
-                bins = arange(-5., 1., 0.1 )
+                bins = arange(-5., 1., 0.01 )
             else:
                 bins = arange(0., 0.6, 0.01 )
         x_bins = bins
@@ -228,7 +253,7 @@ class NN(object):
             y_values = results[:,0]
         _plotKDE(x_values,y_values,x_bins,y_bins,y_label='NNR',
                  formatter=formatter,x_label=x_label)        
-        title("Log("+self.Target[0][1:]+"+0.01) - "+self.ident)
+        title("Log("+self.Target[0][1:]+"+{}) - ".format(self.logoffset)+self.ident)
         if figfile != None:
             savefig(figfile)
             
@@ -239,9 +264,14 @@ class NN(object):
         if I is None: I = self.iTest # Testing data by default
         results = self.eval(I)[:,iTarget]
         targets = self.getTargets(I)
+        if self.scale:
+            targets = self.scaler.inverse_transform(targets)
         if self.nTarget > 1:
             targets = targets[:,iTarget]
-        original = log(self.__dict__['m'+self.Target[iTarget][1:]][I] + 0.01)
+        if not self.laod:
+            results = np.log(results + self.logoffset)
+            targets = np.log(targets + self.logoffset)
+        original = log(self.__dict__['m'+self.Target[iTarget][1:]][I] + self.logoffset)
         if bins == None:
             bins = arange(-5., 1., 0.1 )
 
@@ -253,7 +283,7 @@ class NN(object):
         grid()
         xlabel('AERONET')
         ylabel('MODIS')
-        title("Log("+self.Target[iTarget][1:]+"+0.01) - "+self.ident)
+        title("Log("+self.Target[iTarget][1:]+"+{}) - ".format(self.logoffset)+self.ident)
         if figfile != None:
             savefig(figfile)
 #---------------------------------------------------------------------------------

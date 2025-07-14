@@ -1,0 +1,56 @@
+dset /css/gmao/geos-it/products/Y%y4/M%m2/D%d2/GEOS.it.asm.slv_tavg_1hr_glo_L576x361_slv.GEOS5294.%y4-%m2-%d2T%h2%n2.V01.nc4
+title GEOS-5.29.4 GEOS-IT
+undef 1e+15
+dtype netcdf
+options template
+xdef 576 linear -180 0.625
+ydef 361 linear -90 0.5
+zdef 1 linear 0 1
+tdef 262800 linear 00:30Z01JAN1998 1hr
+vars 45
+CLDPRS=>cldprs  0  t,y,x  cloud_top_pressure
+CLDTMP=>cldtmp  0  t,y,x  cloud_top_temperature
+DISPH=>disph  0  t,y,x  zero_plane_displacement_height
+H1000=>h1000  0  t,y,x  height_at_1000_mb
+H250=>h250  0  t,y,x  height_at_250_hPa
+H500=>h500  0  t,y,x  height_at_500_hPa
+H850=>h850  0  t,y,x  height_at_850_hPa
+OMEGA500=>omega500  0  t,y,x  omega_at_500_hPa
+PBLTOP=>pbltop  0  t,y,x  pbltop_pressure
+PS=>ps  0  t,y,x  surface_pressure
+Q250=>q250  0  t,y,x  specific_humidity_at_250_hPa
+Q500=>q500  0  t,y,x  specific_humidity_at_500_hPa
+Q850=>q850  0  t,y,x  specific_humidity_at_850_hPa
+QV10M=>qv10m  0  t,y,x  10-meter_specific_humidity
+QV2M=>qv2m  0  t,y,x  2-meter_specific_humidity
+SLP=>slp  0  t,y,x  sea_level_pressure
+T10M=>t10m  0  t,y,x  10-meter_air_temperature
+T250=>t250  0  t,y,x  air_temperature_at_250_hPa
+T2M=>t2m  0  t,y,x  2-meter_air_temperature
+T500=>t500  0  t,y,x  air_temperature_at_500_hPa
+T850=>t850  0  t,y,x  air_temperature_at_850_hPa
+TO3=>to3  0  t,y,x  total_column_ozone
+TOX=>tox  0  t,y,x  total_column_odd_oxygen
+TQI=>tqi  0  t,y,x  total_precipitable_ice_water
+TQL=>tql  0  t,y,x  total_precipitable_liquid_water
+TQV=>tqv  0  t,y,x  total_precipitable_water_vapor
+TROPPB=>troppb  0  t,y,x  tropopause_pressure_based_on_blended_estimate
+TROPPT=>troppt  0  t,y,x  tropopause_pressure_based_on_thermal_estimate
+TROPPV=>troppv  0  t,y,x  tropopause_pressure_based_on_EPV_estimate
+TROPQ=>tropq  0  t,y,x  tropopause_specific_humidity_using_blended_TROPP_estimate
+TROPT=>tropt  0  t,y,x  tropopause_temperature_using_blended_TROPP_estimate
+TS=>ts  0  t,y,x  surface_skin_temperature
+U10M=>u10m  0  t,y,x  10-meter_eastward_wind
+U250=>u250  0  t,y,x  eastward_wind_at_250_hPa
+U2M=>u2m  0  t,y,x  2-meter_eastward_wind
+U500=>u500  0  t,y,x  eastward_wind_at_500_hPa
+U50M=>u50m  0  t,y,x  eastward_wind_at_50_meters
+U850=>u850  0  t,y,x  eastward_wind_at_850_hPa
+V10M=>v10m  0  t,y,x  10-meter_northward_wind
+V250=>v250  0  t,y,x  northward_wind_at_250_hPa
+V2M=>v2m  0  t,y,x  2-meter_northward_wind
+V500=>v500  0  t,y,x  northward_wind_at_500_hPa
+V50M=>v50m  0  t,y,x  northward_wind_at_50_meters
+V850=>v850  0  t,y,x  northward_wind_at_850_hPa
+TAITIME=>taitime  0  t  TAITIME
+endvars

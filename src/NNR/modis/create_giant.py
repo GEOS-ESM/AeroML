@@ -167,9 +167,12 @@ xOCEAN = OrderedDict([ ("AOD0470ea-o",'aod'),
           ("AOD1200ea-o",'aod'),
           ("AOD1600ea-o",'aod'),
           ("AOD2100ea-o",'aod'),
+          ("mref0412-o",'reflectance'),
+          ("mref0443-o",'reflectance'),          
           ("mref0470-o",'reflectance'),
           ("mref0550-o",'reflectance'),
           ("mref0660-o",'reflectance'),
+          ("mref0745-o",'reflectance'),
           ("mref0870-o",'reflectance'),
           ("mref1200-o",'reflectance'),
           ("mref1600-o",'reflectance'),
@@ -511,7 +514,7 @@ if __name__ == '__main__':
     DT      = 2  
     dType   = 'days'
     verbose = False
-    append  = True
+    overwrite  = False
 
 
 #   Parse command line options
@@ -562,9 +565,9 @@ if __name__ == '__main__':
                       help="verbose (default=%s)"\
                            %verbose )       
 
-    parser.add_option("-N", "--no_append", dest="append", default=append,action="store_false",
-                      help="change append mode to start new file or overwrite (default=%s)"\
-                           %append )    
+    parser.add_option("--overwrite", dest="overwrite", default=overwrite,action="store_true",
+                      help="overwrite existing file (default=%s)"\
+                           %overwrite )     
 
     parser.add_option("-X", "--Dx", dest="Dx", default=Dx,
                       help="Radius around AERONET site in km (default=%s)"\
@@ -595,35 +598,13 @@ if __name__ == '__main__':
         os.makedirs(outpath)
 
     # outfile name
-    ofile = '{}/giant_C{}_10km_{}_v{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,enymd.strftime('%Y%m%d'))
+    ofile = '{}/giant_C{}_10km_{}_v{}_{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,nymd.strftime('%Y%m%d'),enymd.strftime('%Y%m%d'))
     oldfile = glob('{}/giant_C{}_10km_{}_v{}_*.nc'.format(outpath,options.coll,options.inst,options.version))
 
-    # if you don't want to append, remove this version
-    if (not options.append) & (len(oldfile)>0):
-        os.remove(oldfile[0])
+    if os.path.exists(ofile) and (options.overwrite is False):
+        raise Exception('Outfile {} exists. Set --overwrite flag to clobber file'.format(ofile))    
 
-    # look for file you are appending to, figure out what dates are in it.
-    if options.append:
-        if not oldfile:
-            raise Exception('Appendable file does not exist. Set append to false to start new file')
-
-        # get enddate from file
-        nc = Dataset(oldfile[0])
-        oldenddate = isoparse(chartostring(nc.variables['ISO_DateTime'][:])[-1]).date()
-        oldenddate = datetime(oldenddate.year,oldenddate.month,oldenddate.day)
-        nc.close()
-
-        if enymd <= oldenddate:
-            raise Exception('Already sampled up to or past this date. Remove {}, or set end date past {}'.format(oldfile[0],enymd.strftime('%Y%m%d')))
-
-        else:
-            #figure out starting date
-            nymd = oldenddate + timedelta(days=1)
-            os.rename(oldfile[0],ofile)
-
-
-
-
+    options.append = False    
 
     while nymd <= enymd:
         julday   = nymd - datetime(nymd.year,1,1) + timedelta(days=1)

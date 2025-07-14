@@ -17,6 +17,8 @@
 
 ### Changed
 
+- update all components to SLES15 versions
+
 ## [v1.1.0] 2025-07-02
 
 ### Added

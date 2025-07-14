@@ -12,6 +12,17 @@
 - add 412 and 440 ch to modis ocean NNR
 - ability to train on the AE linear fit to spectral AOD on MODIS 
 - AE linear fit training also extended to VIIRS
+
+### Fixed
+
+### Changed
+
+## [v1.1.0] 2025-07-02
+
+### Added
+
+- create an Applications folder for GAAS_App scripts that do the NNR pre-processing for the DAS
+- ability to train on the AE linear fit to spectral AOD
 - use TQV and TO3 as inputs
 
 ### Fixed

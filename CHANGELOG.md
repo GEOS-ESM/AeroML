@@ -1,7 +1,13 @@
 # ChangeLog
 
 ## [Unreleased]
+### Added
 
+### Fixed
+
+### Changed
+
+## [v1.2.0] 2025-07-16
 ### Added
 
 - abiltity to use GEOS-IT for training
@@ -12,6 +18,8 @@
 - add 412 and 440 ch to modis ocean NNR
 - ability to train on the AE linear fit to spectral AOD on MODIS 
 - AE linear fit training also extended to VIIRS
+- GAAS_App now contains the updated v004 modis GAAS_App scripts and the v001 viirs scripts. these were brought over from AeroApps
+- modis and viirs GAAS_App scripts are now organized by version numbers to allow for legacy back compatibility/reproducibiity
 
 ### Fixed
 

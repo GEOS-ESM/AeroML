@@ -1,0 +1,126 @@
+# inputs
+
+dict(
+# list of giant files
+    giantFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*nc',
+                  '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*nc'),
+
+# MERRRA-2 sampled input files
+    aerFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*MERRA2*npz',
+                '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*MERRA2*npz'),
+
+# tymemax sets a truncation date when reading in giant file
+# string with format YYYYMMDD
+# None reads the entire datarecord
+    tymemax = None,
+
+# how many std dev to use for outlier removal. If < 0, don't do outlier removal
+# default is 3
+    outliers = 3,
+
+# number of hidden layers
+    nHLayers = 1,
+
+# number of nodes in hidden layers
+# None uses the default of 200 coded in nn.py
+    nHidden = None,
+
+# do training on combinations of the inputs
+    combinations = False,
+
+# number of K-folds or training
+# if None does not do K-folding, trains on entire dataset
+    K            = None,
+
+# Flags to Train or Test the DARK TARGET DATASET
+    doTrain      = True,
+    doTest       = True,
+
+# experiment name
+    expid        = 'candidate_linputs_2outputsAEfitm_002',
+
+# NN target variable name
+#    Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'],
+#    Target       = ['aTau550'],
+#    Target       = ['aAE440','aAE470','aTau550','aAE660','aAE870','aAE1020','aAE1640'],
+    Target = ['aTau550','aAEfitm'],
+
+# surface albedo variable name
+# options are None, MCD43C1, MOD43BClimAlbedo
+    Albedo  = None,
+
+# Inputs that are always included in combinations
+# this can be None
+#  Input_const  = ['SolarZenith','ScatteringAngle', 'GlintAngle','mRef412','mRef470','mRef660',
+#                  'fdu','fcc','fss'],
+    Input_const = None,
+
+# Inputs that can be varied across combinations
+# if combinations flag is False, all of these inputs are used
+# if combinations flag is True, all possible combinations of these inputs
+# are tried
+
+    Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
+                   'lfdu','lfcc','lfss',
+                   'lmRef412','lmRef488','lmRef550','lmRef670', 'lmRef865','lmRef1240','lmRef1640','lmRef2250',
+                   'mSre488','mSre670'],
+
+#                 ['ndvi'] +\
+#                 ['atype'] +\
+#                 ['cloud'] +\
+#                 ['algflag'] +\
+#                 ['colO3'] +\
+#                 ['water'] +\
+#                 ['pixel_elevation']
+#                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']    
+
+# Inputs I want to the the log-transform of
+    lInput_nnr = ['mRef412','mRef488','mRef550','mRef670', 'mRef865','mRef1240','mRef1640','mRef2250',
+                  'fdu','fcc','fss'],
+
+# Additional variables that the inputs are filtered by
+# standard filters are hardcoded in the abc_c6.py scripts
+    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'] +\
+                   ['colO3'] +\
+                   ['water'],
+
+#    ['aTau440','aTau470','aTau550','aTau660','aTau870','aTau1020','aTau1640'] +\
+#                 ['colO3'] +\
+#                 ['water'] +\
+#                 ['pixel_elevation']
+#                 ['mSre488','mSre670'] +\
+#                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
+#                 ['algflag']
+# ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
+
+
+# fraction that defines whether a pixel is dominated by a species
+# if not set as an input default is 0.5
+# if less than 0, will not do balancing
+    f_balance = 0.5,
+
+# flag to do both species and target AOD balancing
+# default is True
+# minN is the minimum number of points in a size bin
+# if this is too small, very few obs will make it through
+# default is 500
+# fignore is a list of species to ignore when doing species balancing
+# here we ignore SS dominated because it is overwhelmingly the least observed
+    q_balance = True,
+    minN = 500,
+    fignore = ['fss'],
+    nbins = 6,
+
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
+    cloud_thresh = 0.7,
+
+# algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
+#              None - don't filter, use all pixels
+#              0 - hybrid (heterogenous surface)
+#              1 - vegetated surface
+#              2 - bright surface
+#              3 - mixed    
+    algflag = None,
+)
+

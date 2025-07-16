@@ -13,8 +13,7 @@ from dateutil.parser import parse as isoparse
 
 from pyobs.npz       import NPZ
 
-META =  ( "Date",
-          "Time",
+META =  ( "ISO_DateTime",
           "Latitude",
           "Longitude",
           "SolarZenith",
@@ -82,6 +81,7 @@ xDT_OCEAN = ( "mean_AOD0480ea-o",
 #          "mean_wspeed-o",
           "mean_acfrac-o",
           "mode_QAavg-o",
+          "mode_algflgdpbl-o",
 #          "cval_cldpixdistavg",
           "nval_AOD0550ea-o"
          )
@@ -262,13 +262,15 @@ class GIANT(object):
   """
 
 
-  def __init__ (self,filename,xVars=(),only_good=True,tymemax=None):
+  def __init__ (self,Path,xVars=(),only_good=True,tymemin=None,tymemax=None):
     """
      Creates an GIANT object defining the attributes corresponding
      to the SDS of interest.
     """
+    if type(Path) is str:
+        Path = [Path]
 
-    if 'SNPP' in filename:     self.sat = 'SNPP'
+    if 'SNPP' in Path[0]:      self.sat = 'SNPP'
     else:                      self.sat = 'Unknown'    
 
     self.only_good = only_good
@@ -278,71 +280,379 @@ class GIANT(object):
     # ------------------------
     self.ALIAS = ALIAS.copy()
 
-    # Read in variables
-    # -----------------
-    print('filename ',filename)
-    nc = Dataset(filename)
     Alias = list(self.ALIAS.keys())
     self.giantList =[]
-    for name in Names:
-      data = nc.variables[name][:]
-      if name in Alias:
-          name = self.ALIAS[name]
+    # Read in variables
+    # -----------------
+    first = True
+    for filename in Path:
+        print('filename ',filename)
+        nc = Dataset(filename)
+        for name in Names:
+          data = nc.variables[name][:]
+          if name in Alias:
+              name = self.ALIAS[name]
 
-      # old files use -9999.0 for fill value
-      # new files use masked arrays
-      # convert everythong to regular array filling with -9999.0
-      # make sure _fill_value is -9999.0
-      if data.dtype == np.dtype('S1'):
-          self.__dict__[name] = np.array(data).astype(str)
-      else:      
-          self.__dict__[name] = np.array(data)
-      self.giantList.append(name)
-    nc.close()
+          # old files use -9999.0 for fill value
+          # new files use masked arrays
+          # convert everythong to regular array filling with -9999.0
+          # make sure _fill_value is -9999.0
+          if data.dtype == np.dtype('S1'):
+              if first:
+                  self.__dict__[name] = np.array(data).astype(str)
+              else:
+                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data).astype(str),axis=0)
+          else:      
+              if first:
+                  self.__dict__[name] = np.array(data)
+              else:
+                  self.__dict__[name] = np.append(self.__dict__[name],np.array(data))
+          if first:
+              self.giantList.append(name)
+        nc.close()
+        first = False
 
     # Form python tyme
     # ----------------
     # new files have an ISO_DateTime variable
-    nc = Dataset(filename)
-    if 'ISO_DateTime' in list(nc.variables.keys()):
-        try:
-            iso = nc.variables['ISO_DateTime'][:].astype(str)
+    first = True
+    for filename in Path:
+        nc = Dataset(filename)
+        iso = nc.variables['ISO_DateTime'][:].astype(str)
+        if first:
             self.tyme = array([isoparse(''.join(array(t))) for t in iso])
-        except:
-        # old file only have Date and Time variables
-            D = self.Date[:,0:10]
-            T = self.Time[:,0:5] # they didn't save the seconds
-            # Bug in dataset, first field is blank
-            D[0] = D[1]
-            T[0] = T[1]
-            self.aTau550[0] = -9999.0
-            self.tyme = array([ isoparse(''.join(D[i])+'T'+''.join(t)) for i, t in enumerate(T) ])    
-    nc.close()
+        else:
+            self.tyme = np.append(self.tyme,array([isoparse(''.join(array(t))) for t in iso]))
+        nc.close()
+        first = False
 
-    # Limit to the MERRA-2 time series
-    #---------------------------------
-    if tymemax is not None:
-      tymemax = isoparse(tymemax)
-      I = self.tyme < tymemax
-      
-      for name in Names:
-        if name in Alias:
-          name = self.ALIAS[name]
-        self.__dict__[name] = self.__dict__[name][I]
-
-      self.tyme = self.tyme[I]
-
-    del self.Date, self.Time
-    self.giantList.remove('Date')
-    self.giantList.remove('Time')
     self.giantList.append('tyme')
+
+    # Limit time series
+    #---------------------------------
+    if (tymemin is not None) and (tymemax is not None):
+        tymemin = isoparse(tymemin)
+        tymemax = isoparse(tymemax)
+        I = (self.tyme <= tymemin) & (self.tyme < tymemax)
+        self.Ityme = I # save this for truncating auxiliary data too
+    elif tymemin is not None:
+        tymemin = isoparse(tymemin)
+        I = self.tyme <= tymemin
+        self.Ityme = I # save this for truncating auxiliary data too
+    elif tymemax is not None:
+        tymemax = isoparse(tymemax)
+        I = self.tyme < tymemax
+        self.Ityme = I # save this for truncating auxiliary data too
+    else:
+        self.Ityme = None
+    
+    if self.Ityme is not None:
+        for name in Names:
+            if name in Alias:
+                name = self.ALIAS[name]
+            self.__dict__[name] = self.__dict__[name][I]
+
+        self.tyme = self.tyme[I]
 
     # Record number of observations
     # -----------------------------
     self.nobs = len(self.lon)
 
+    # scale pixel elveation
+    # ----------------------
+    if "pixel_elevation" in self.giantList:
+        self.pixel_elevation = self.pixel_elevation*1e-4
 #--
-  def balance(self,N,frac=0.50):
+  def spc_target_balance(self,minN=None,frac=0.50,fignore=[],nbins=6):
+    """
+    Retrun indices of observations following a species and target AOD balancing.
+    We want to balance both according to species, and according to the value of the target AOD.
+    The idea is we want to equally train against high, moderate, and low AOD conditions, 
+    and a variety of aerosol species mixtures.
+
+    minN = optional variable, if you want to set the minimum number that a size bin of species type can have
+    frac = fraction that defines whether a species dominates
+    fignore = list of species to ignore in species balance.  for land, we can ignore sea salt.
+    nbins = number of size bins to use
+    """
+    
+    np.random.seed(32768) # so that we get the same permutation
+
+    # first divide up the data by species
+    nobs = len(self.lon)
+    I = np.zeros(nobs).astype(bool)    
+    nspc = 5
+    Ispc = np.zeros([nobs,nspc]).astype(bool)
+    spclist = ['fdu','fss','fcc','fsu','fna']
+    for ispc,f in enumerate([self.fdu,self.fss,self.fcc,self.fsu]):
+
+      J = f>frac                      # all obs for which species dominate
+      J = J & ~I                      # only obs that haven't already been selected
+      Ispc[:,ispc] = J                # label these as dominated
+      
+      I[J] = True                     # save the ones that have been labeled
+
+    # where none dominate
+    J = (self.fdu <= frac) & (self.fss <= frac) & (self.fcc <= frac) & (self.fsu <= frac)
+    J = J & ~I                      # only obs that haven't already been selected
+    Ispc[:,-1] = J
+
+    # get aTau distributions
+    tau = np.log(self.aTau550+self.logoffset)
+    tmin,tmax = tau.min(),tau.max()
+#    q = np.linspace(0,1,nbins+1)
+#    bine = np.quantile(tau,q)
+    t15 = np.quantile(tau,0.15)
+    t85 = np.quantile(tau,0.85)
+    bine = np.linspace(t15,t85,nbins-1)
+    bine = np.append(tmin,bine)
+    bine = np.append(bine,tmax)
+    Ibin = np.zeros([nobs,nspc,nbins]).astype(bool)
+    nbin = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        for ibin in range(nbins):
+            bl = bine[ibin]
+            bu = bine[ibin+1]
+            # get the index numbers for the species i'm looking at
+            kspc = np.arange(nobs)[Ispc[:,ispc]]
+            # figure out which obs fall into the size bin
+            if ibin == nbins - 1:
+                i = (tau[kspc] >= bl) & (tau[kspc] <= bu)
+            else:
+                i = (tau[kspc] >= bl) & (tau[kspc] < bu)
+            Ibin[kspc[i],ispc,ibin] = True
+            nbin[ispc,ibin] = np.sum(i)
+
+    # Balance the aTau distributions
+    # We want the same number of obs in each bin
+    Ibin_balance = np.zeros([len(self.lon),nspc,nbins]).astype(bool)
+    nbin_balance = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        # find the minimum number of obs in a aTau bin
+        if minN is None:
+            n = nbin[ispc,nbin[ispc,:]>0].min()
+        else:
+            n = max([int(minN),nbin[ispc,nbin[ispc,:]>0].min()])
+        # reduce all the other bins down to this number
+        # leave out tails
+        for ibin in range(nbins):
+            if (nbin[ispc,ibin] <= n) or (ibin == 0) or (ibin == nbins-1):
+                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
+                Ibin_balance[k,ispc,ibin] = True
+                nbin_balance[ispc,ibin] = nbin[ispc,ibin]                
+            else:
+                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
+                # Get a random permutation of the obs in this bin
+                P = np.random.permutation(nbin[ispc,ibin])
+                # Get the first n random samples
+                k = k[P[0:n]]
+                Ibin_balance[k,ispc,ibin] = True
+                nbin_balance[ispc,ibin] = n
+
+    # Now balance across the species
+    # reduce number of obs in the aTau bins evenly
+    # to keep target balance
+    # not going to be exact here, but have them all the within 25%
+    # trying to keep as many obs as possible
+    nbin_spc = nbin_balance.sum(axis=1)
+    usespc = []
+    for spcname in spclist:
+        if spcname in fignore:
+            usespc.append(False)
+        else:
+            usespc.append(True)
+
+    nspc_min = nbin_spc[usespc].min()
+    nspc_frac = nbin_spc/nspc_min
+    close = 1.25
+    for ispc in range(nspc):
+        if (nspc_frac[ispc] > close) and (spclist[ispc] not in fignore):
+            # spread reduction evenly among number of bins
+            nbalance = int(nspc_min*close/nbins)
+            for ibin in range(nbins):
+                if nbin_balance[ispc,ibin] > nbalance:
+                    k = np.arange(nobs)[Ibin_balance[:,ispc,ibin]]
+                    ncut = nbin_balance[ispc,ibin]-nbalance
+                    P = np.random.permutation(ncut)
+                    k = k[P[0:ncut]]
+                    Ibin_balance[k,ispc,ibin] = False
+                    nbin_balance[ispc,ibin] = nbalance
+            
+
+
+    # now collapse this down to one array
+    Ispc = np.any(Ibin_balance,axis=2)
+    I = np.any(Ispc,axis=1)
+
+    return I
+#--
+  def spc_target_balance_enhance(self,frac=0.50,fignore=[],nbins=6):
+    """
+    Retrun indices of observations following a species and target AOD balancing.
+    We want to balance both according to species, and according to the value of the target AOD.
+    The idea is we want to equally train against high, moderate, and low AOD conditions,
+    and a variety of aerosol species mixtures.
+
+    minN = optional variable, if you want to set the minimum number that a size bin of species type can have
+    frac = fraction that defines whether a species dominates
+    fignore = list of species to ignore in species balance.  for land, we can ignore sea salt.
+    nbins = number of size bins to use
+    """
+
+    np.random.seed(32768) # so that we get the same permutation
+
+    # first divide up the data by species
+    nobs = len(self.lon)
+    I = np.zeros(nobs).astype(bool)
+    nspc = 5
+    Ispc = np.zeros([nobs,nspc]).astype(bool)
+    spclist = ['fdu','fss','fcc','fsu','fna']
+    for ispc,f in enumerate([self.fdu,self.fss,self.fcc,self.fsu]):
+
+      J = f>frac                      # all obs for which species dominate
+      J = J & ~I                      # only obs that haven't already been selected
+      Ispc[:,ispc] = J                # label these as dominated
+
+      I[J] = True                     # save the ones that have been labeled
+
+    # where none dominate
+    J = (self.fdu <= frac) & (self.fss <= frac) & (self.fcc <= frac) & (self.fsu <= frac)
+    J = J & ~I                      # only obs that haven't already been selected
+    Ispc[:,-1] = J
+
+    # get aTau distributions
+    tau = np.log(self.aTau550+self.logoffset)
+    tmin,tmax = tau.min(),tau.max()
+#    q = np.linspace(0,1,nbins+1)
+#    bine = np.quantile(tau,q)
+    t15 = np.quantile(tau,0.15)
+    t85 = np.quantile(tau,0.85)
+    bine = np.linspace(t15,t85,nbins-1)
+    bine = np.append(tmin,bine)
+    bine = np.append(bine,tmax)
+    Ibin = np.zeros([nobs,nspc,nbins]).astype(bool)
+    nbin = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        for ibin in range(nbins):
+            bl = bine[ibin]
+            bu = bine[ibin+1]
+            # get the index numbers for the species i'm looking at
+            kspc = np.arange(nobs)[Ispc[:,ispc]]
+            # figure out which obs fall into the size bin
+            if ibin == nbins - 1:
+                i = (tau[kspc] >= bl) & (tau[kspc] <= bu)
+            else:
+                i = (tau[kspc] >= bl) & (tau[kspc] < bu)
+            Ibin[kspc[i],ispc,ibin] = True
+            nbin[ispc,ibin] = np.sum(i)
+
+    # Balance the aTau distributions
+    # By repeating obs until we have
+    # the same number of obs in each bin
+    Ibin_balance = np.zeros([len(self.lon),nspc,nbins]).astype(bool)
+    nbin_balance = np.zeros([nspc,nbins]).astype(int)
+    for ispc in range(nspc):
+        # find the maximum number of obs in a aTau bin
+        n = nbin[ispc,nbin[ispc,:]>0].max()
+
+        # duplicate obs in all the other bins to get up to this number
+        for ibin in range(nbins):
+            if nbin[ispc,ibin] < n:
+                nadd = n - nbin[ispc,ibin]
+                k = np.arange(nobs)[Ibin[:,ispc,ibin]]
+                if nadd > nbin[ispc,ibin]:
+                    # Get a random permutation of the obs in this bin
+                    P = np.random.permutation(nbin[ispc,ibin])
+                    # Get the first nadd random samples
+                    naddT = 0
+                    kadd = []
+                    while naddT < nadd:
+                        kadd.append(k[P[0:nbin[ispc,ibin]]])
+                        naddT += nbin[ispc,ibin]
+
+                    k = kadd[:nadd]
+                else:
+                    # Get a random permutation of the obs in this bin
+                    P = np.random.permutation(nbin[ispc,ibin])
+                    # Get the first nadd random samples
+                    k = k[P[0:nadd]]
+
+                Iadd = np.zeros([nadd,nspc,nbins]).astype(bool)
+                Iadd[:,ispc,ibin] = True
+                Ibin_balance = np.append(Ibin_balance,Iadd)
+                nbin_balance[ispc,ibin] += nadd
+
+                Iadd = Iadd.squeeze()
+                self.iValid = np.append(self.iValid,Iadd)
+                self.iTrain = np.append(self.iTrain,Iadd)
+                self.nValid += nadd
+                self.nobs   += nadd
+
+                for var in self.Target:
+                    self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+                for var in self.Input:
+                    self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+
+    # Now balance across the species
+    # Enhance the number of obs in the aTau bins evenly
+    # to keep target balance
+    # not going to be exact here, but have them all the within 25%
+    # trying to keep as many obs as possible
+    nbin_spc = nbin_balance.sum(axis=1)
+    usespc = []
+    for spcname in spclist:
+        if spcname in fignore:
+            usespc.append(False)
+        else:
+            usespc.append(True)
+
+    nspc_min = nbin_spc[usespc].min()
+    nspc_frac = nbin_spc/nspc_min
+    close = 1.25
+    for ispc in range(nspc):
+        if (nspc_frac[ispc] > close) and (spclist[ispc] not in fignore):
+            # spread reduction evenly among number of bins
+            nbalance = int(nspc_min*close/nbins)
+            for ibin in range(nbins):
+                if nbin_balance[ispc,ibin] < nbalance:
+                    k = np.arange(nobs)[Ibin_balance[:,ispc,ibin]]
+                    nadd = nbalance - nbin_balance[ispc,ibin]
+                    if nadd > nbin_balance[ispc,ibin]:
+
+                        # Get a random permutation of the obs in this bin
+                        P = np.random.permutation(nbin_balance[ispc,ibin])
+                        # Get the first nadd random samples
+                        naddT = 0
+                        kadd = []
+                        while naddT < nadd:
+                            kadd.append(k[P[0:nbin_balance[ispc,ibin]]])
+                            naddT += nbin_balance[ispc,ibin]
+
+                        k = kadd[:nadd]
+                    else:
+                        # Get a random permutation of the obs in this bin
+                        P = np.random.permutation(nbin_balance[ispc,ibin])
+                        # Get the first nadd random samples
+                        k = k[P[0:nadd]]
+
+                    Iadd = np.zeros([nadd,nspc,nbins]).astype(bool)
+                    Iadd[:,ispc,ibin] = True
+                    Ibin_balance = np.append(Ibin_balance,Iadd)
+                    nbin_balance[ispc,ibin] += nadd
+
+                    Iadd = Iadd.squeeze()
+                    self.iValid = np.append(self.iValid,Iadd)
+                    self.iTrain = np.append(self.iTrain,Iadd)
+                    self.nValid += nadd
+                    self.nobs   += nadd
+
+                    for var in self.Target:
+                        self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])
+                    for var in self.Input:
+                        self.__dict__[var] = np.append(self.__dict__[var],self.__dict__[var][k])                    
+
+#--
+  def spc_balance(self,N,frac=0.50):
     """
     Return indices of observations so that each species does not have more than
     N observations. This is meant to be performed with a reduced dataset.
@@ -362,8 +672,40 @@ class GIANT(object):
       K[P[0:m]] = True
       I[J] = K
 
-    return I
+    # where none dominate
+    J = (self.fdu <= frac) & (self.fss <= frac) & (self.fcc <= frac) & (self.fsu <= frac)
+    J = J & ~I                      # only obs that haven't already been selected
+    n = len(self.lon[J])              # no. obs for this species
+    P = random.permutation(n)      # randomize obs for this species
+    m = min(n,N)                   # keep this many
 
+    K = I[J]
+    K[P[0:m]] = True
+    I[J] = K
+
+
+    return I
+#--
+  def balance(self,N,frac=0.5):
+    """
+    Return indices of observations so that each species does not have more than
+    N observations. This is meant to be performed with a reduced dataset.
+    """
+    I = zeros(self.lon.shape).astype(bool)
+    random.seed(32768) # so that we get the same permutation
+
+    for f in (self.fdu,self.fss,self.fcc,self.fsu):
+
+      J = f>frac                      # all obs for which species dominate
+      n = len(self.lon[J])              # no. obs for this species
+      P = random.permutation(n)      # randomize obs for this species
+      m = min(n,N)                   # keep this many
+
+      K = I[J]
+      K[P[0:m]] = True
+      I[J] = K
+
+    return I
 #---
   def reduce(self,I):
     """
@@ -447,18 +789,22 @@ class GIANT(object):
       savez(npzFile,**self.sample.__dict__)
 
 #---
-  def speciate(self,aer_x,FineMode=False,Verbose=False):
+  def speciate(self,aer_x,spcvars=('fdu','fss','fcc','fsu'),FineMode=False,Verbose=False):
     """
     Use GAAS to derive fractional composition.
     """
+    onlyVars=('TOTEXTTAU',
+              'DUEXTTAU',
+              'SSEXTTAU',
+              'BCEXTTAU',
+              'OCEXTTAU',
+              'SUEXTTAU')
 
-    self.sampleFile(aer_x,onlyVars=('TOTEXTTAU',
-                                    'DUEXTTAU',
-                                    'SSEXTTAU',
-                                    'BCEXTTAU',
-                                    'OCEXTTAU',
-                                    'SUEXTTAU',
-                                    ),Verbose=Verbose)
+    if 'fni' in spcvars:
+        onlyVars += ('NIEXTTAU',)
+
+    self.sampleFile(aer_x,onlyVars=onlyVars,Verbose=Verbose)
+
     s = self.sample
     I = (s.TOTEXTTAU<=0)
     s.TOTEXTTAU[I] = 1.E30
@@ -468,6 +814,9 @@ class GIANT(object):
     self.foc  = s.OCEXTTAU / s.TOTEXTTAU
     self.fcc  = self.fbc + self.foc
     self.fsu  = s.SUEXTTAU / s.TOTEXTTAU
+
+    if 'fni' in spcvars:
+        self.fni = s.NIEXTTAU / s.TOTEXTTAU
 
     if FineMode:
       TOTEXTTAU = s.TOTEXTTAU[:]
@@ -534,6 +883,39 @@ class GIANT(object):
       else:
         savez(npzFile,wind=self.wind,u10m=self.u10m,v10m=self.v10m,
                     fdu=self.fdu,fss=self.fss,fcc=self.fcc,fsu=self.fsu)     
+
+  def sampleGEOSIT(self,slv_x='tavg1_2d_slv_Nx',aer_x='tavg1_2d_aer_Nx',
+                  FineMode=False,npzFile=None,Verbose=False,onlyVars=('U10M','V10M')):
+
+    if onlyVars is not None:
+        self.sampleFile(slv_x,onlyVars=onlyVars, Verbose=Verbose)
+
+    labels = ()
+    for varname in onlyVars:
+        self.__dict__[varname.lower()] = self.sample.__dict__[varname]
+        labels = labels + (varname.lower(),)
+
+    if 'U10M' in onlyVars:
+        self.wind = sqrt(self.sample.U10M[:]**2 + self.sample.V10M[:]**2)
+
+    del self.sample
+
+    spcvars = ('fdu','fss','fcc','fsu','fni')
+    if aer_x is not None:
+        self.speciate(aer_x,spcvars=spcvars,FineMode=FineMode,Verbose=Verbose)
+
+    if aer_x is not None:
+        labels = labels + spcvars
+        if FineMode:
+            labels = labels + ('fduf','fssf')
+
+    kwds = {}
+    for varname in labels:
+        kwds[varname] = self.__dict__[varname]
+
+    if npzFile is not None:
+      savez(npzFile,**kwds)
+
 
   def sampleMCD43C(self,npzFile=None,Verbose=False):
     from pyabc.mcd43c import MCD43C
@@ -616,7 +998,11 @@ class DT_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdtl'
-        self.ident = self.ident + '_'+ filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_'+ fname.split('/')[-1].split('.')[0]
         self.surface = 'land'
 
         # Angstrom interpolate retrieved AOD to
@@ -634,7 +1020,11 @@ class DT_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'ocean'
 
         # Angstrom interpolate retrieved AOD to
@@ -654,7 +1044,11 @@ class DB_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]            
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'ocean'
 
         # Angstrom interpolate retrieved AOD to
@@ -674,7 +1068,11 @@ class DB_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbl'
-        self.ident = self.ident + '_' + filename.split('/')[-1].split('.')[0]
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
         self.surface = 'land'
 
         # Angstrom interpolate retrieved AOD to 
@@ -686,6 +1084,29 @@ class DB_LAND(GIANT):
         self.mTau660 = aodInterpAngs(660.,self.mTau550,self.mTau670,550.,670.)
 
         self.giantList += ['mTau470','mTau660']
+
+class DB_DEEP(GIANT):
+    def __init__(self,filename,tymemax=None):
+        GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
+        if self.sat == 'SNPP':
+            self.ident = 'vsdbd'
+        if type(filename) is str:
+           fname = filename
+        else:
+           fname = filename[0]
+        self.ident = self.ident + '_' + fname.split('/')[-1].split('.')[0]
+        self.surface = 'deep'
+
+        # Angstrom interpolate retrieved AOD to
+        # nominal MODIS wavelengths (412, 470, 550, 660)
+        # for ease of comparison
+        # VIIRS channels = 412, 488, 550, 670
+        # ------------------------------------------------
+        self.mTau470 = aodInterpAngs(470.,self.mTau412,self.mTau488,412.,488.)
+        self.mTau660 = aodInterpAngs(660.,self.mTau550,self.mTau670,550.,670.)
+
+        self.giantList += ['mTau470','mTau660']
+
 
 #---
 def aodInterpAngs(lambda_,tau1,tau2,lambda1,lambda2):

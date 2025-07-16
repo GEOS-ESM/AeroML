@@ -5,114 +5,167 @@
 
 import os, sys
 from   pyabc.abc_viirs         import ABC_DB_Land, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
-
+from   pyabc.abc_c6_aux           import SummarizeCombinations
+import argparse
+from   glob                    import glob
 
 if __name__ == "__main__":
-  # giantFile
-  giantFile = '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputs",
+                        help="python file with dictionary of inputs")
+
+    args = parser.parse_args()
+
+    # read in dictionary of input parameters
+    s = open(args.inputs).read()
+    inputs = eval(s)
+
+    # --------------
+    # Setup Inputs
+    # -------------
+
+    # giantFile
+    giantFile = []
+    for gFile in inputs['giantFile']:
+        giantFile += sorted(glob(gFile))
+
+    aerFile = []
+    for aFile in inputs['aerFile']:
+        aerFile += sorted(glob(aFile))    
+    
+
   
-  # tymemax sets a truncation date when reading in giant file
-  # string with format YYYYMMDD
-  # None reads the entire datarecord
-  tymemax = None
+    # tymemax sets a truncation date when reading in giant file
+    # string with format YYYYMMDD
+    # None reads the entire datarecord
+    tymemax = inputs['tymemax']
 
-  # number of hidden layers
-  nHLayers     = 1
+    # how many std dev to use for outlier removal. If < 0, don't do outlier removal
+    # default is 3
+    outliers = inputs['outliers']
 
-  # number of nodes in hidden layers
-  # None uses the default of 200 coded in nn.py  
-  nHidden      = 200
+    # number of hidden layers
+    nHLayers     = inputs['nHLayers']
 
-  # do training on combinations of the inputs
-  combinations = False
+    # number of nodes in hidden layers
+    # None uses the default of 200 coded in nn.py  
+    nHidden      = inputs['nHidden']
 
-  # NN target variable names
-#  Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
-#  Target       = ['aTau550']
-  Target       = ['aAE440','aAE470','aTau550','aAE660','aAE870','aAE1020','aAE1640']
+    # do training on combinations of the inputs
+    combinations = inputs['combinations']
 
-  # surface albedo variable name
-  # options are None, MCD43C1, MOD43BClimAlbedo  
-  Albedo       = None #['MCD43C1'] #['MOD43BClimAlbedo']
+    # NN target variable names
+    Target       = inputs['Target']
 
-  # number of K-folds or training
-  # if None does not do K-folding, trains on entire dataset
-  K            = 3 
+    # surface albedo variable name
+    # options are None, MCD43C1, MOD43BClimAlbedo  
+    Albedo       = inputs['Albedo']
 
+    # number of K-folds or training
+    # if None does not do K-folding, trains on entire dataset
+    K            = inputs['K']
 
-  # Flags to Train of Test the DEEP BLUE DATASET
-  doTrain      = True
-  doTest       = True
+    # Flags to Train of Test the DEEP BLUE DATASET
+    doTrain      = inputs['doTrain']
+    doTest       = inputs['doTest']
 
-  # experiment name
-  expid        = 'candidate_8outputsAE_002'
+    # experiment name
+    expid        = inputs['expid']
 
-  # Inputs that are always included
-  # this can be None
-#  Input_const  = ['SolarZenith','ScatteringAngle', 'GlintAngle','mRef412','mRef470','mRef660',
-#                  'fdu','fcc','fss']
-  Input_const  = None
+    # Inputs that are always included
+    # this can be None
+    Input_const  = inputs['Input_const']
 
-  # Inputs that can be varied across combinations
-  # if combinations flag is False, all of these inputs are used
-  # if combinations flag is True, all possible combinations of these inputs
-  # are tried
-  Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-                  'mRef412','mRef488','mRef550','mRef670','mRef865','mRef1240','mRef1640','mRef2250'] +\
-                 ['mSre412','mSre488','mSre670'] +\
-                 ['fdu','fcc','fss'] +\
-                 ['ndvi'] +\
-                 ['atype'] +\
-                 ['cloud'] +\
-                 ['algflag'] +\
-                 ['colO3'] +\
-                 ['water'] +\
-                 ['pixel_elevation']
-#                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
-#                 ['algflag']
-#  Input_nnr =   ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
-#  Input_nnr    = ['mSre412','mSre470','mSre660']
-#  'fdu','fcc','fss'] +\
-  # Additional variables that the inputs are filtered by
-  # standard filters are hardcoded in the abc_c6.py scripts
-  aFilter      = ['aTau440','aTau470','aTau550','aTau660','aTau870','aTau1020','aTau1640'] +\
-                 ['mSre412','mSre488','mSre670'] +\
-                 ['colO3'] +\
-                 ['water'] +\
-                 ['pixel_elevation']
-#                 ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
-#                 ['algflag'] 
-  # ['BRDF470','BRDF550','BRDF650','BRDF850','BRDF1200','BRDF1600','BRDF2100']
+    # Inputs that can be varied across combinations
+    # if combinations flag is False, all of these inputs are used
+    # if combinations flag is True, all possible combinations of these inputs
+    # are tried
+    Input_nnr    = inputs['Input_nnr']
 
+    # Inputs I want to the the log-transform of
+    lInput_nnr = inputs['lInput_nnr']
 
-  # --------------
-  # End of Inputs
-  # -------------
+    # Additional variables that the inputs are filtered by
+    # standard filters are hardcoded in the abc_c6.py scripts
+    aFilter      = inputs['aFilter']
 
-  # get satellite name from giantFile name
-  sat = giantFile.split('_')[-3]
+    # fraction that defines whether a pixel is domniated by a species
+    f_balance = inputs['f_balance']
 
-  if sat == 'SNPP':
-    retrieval    = 'VS_DB_LAND'
-  if sat == 'NOAA20':
-    retrieval    = 'VN20_DB_LAND'
+    # flag to do both species and target AOD balancing
+    q_balance = inputs['q_balance']
+    q_balance_enhance = inputs['q_balance_enhance']
 
-  expid        = '{}_{}'.format(retrieval,expid)
+    # minimum number of points to have in a size bin for balancing
+    # this is an adhoc parameter, but if it's too small, no obs will make
+    # it through balancing procedure
+    minN = inputs['minN']
 
-  if Input_const is not None:
-    InputMaster = list((Input_const,) + tuple(Input_nnr))      
-  else:
-    InputMaster = Input_nnr
+    # ignore a species when doing species balancing step 
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
+    
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
 
-  # Train/Test on full dataset
-  # -------------------------------------
-  if doTrain or doTest:
-    deep = ABC_DB_Land(giantFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=0.7,
-                       algflag=None)  
-    # Initialize class for training/testing
-    # ---------------------------------------------
-    deep.setupNN(retrieval, expid,
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+
+    # algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
+    #            None - don't filter, use all pixels
+    #            0 - hybrid (heterogenous surface)
+    #            1 - vegetated surface
+    #            2 - bright surface
+    #            3 - mixed
+    algflag = inputs['algflag']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']
+
+    # --------------
+    # End of Inputs
+    # -------------
+
+    # get satellite name from giantFile name
+    if type(giantFile) is str:
+        sat = giantFile.split('_')[-4]
+    else:
+        sat = giantFile[0].split('_')[-4]
+
+    if sat == 'SNPP':
+        retrieval    = 'VS_DB_LAND'
+    if sat == 'NOAA20':
+        retrieval    = 'VN20_DB_LAND'
+
+    expid        = '{}_{}'.format(retrieval,expid)
+
+    if Input_const is not None:
+        InputMaster = list((Input_const,) + tuple(Input_nnr))      
+    else:
+        InputMaster = Input_nnr
+
+    # Train/Test on full dataset
+    # -------------------------------------
+    if doTrain or doTest:
+        deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
+                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale)  
+
+        # Initialize class for training/testing
+        # ---------------------------------------------
+        deep.setupNN(retrieval, expid,
                         nHidden      = nHidden,
                         nHLayers     = nHLayers,
                         combinations = combinations,
@@ -120,20 +173,50 @@ if __name__ == "__main__":
                         Input_nnr    = Input_nnr,                                         
                         Target       = Target,                      
                         K            = K,
-                        f_balance    = 0.35)
+                        lInput_nnr   = lInput_nnr,
+                        f_balance    = f_balance,
+                        q_balance    = q_balance,
+                        q_balance_enhance = q_balance_enhance,
+                        minN         = minN,
+                        fignore      = fignore,
+                        nbins        = nbins)
 
+    # Do Training and Testing
+    # ------------------------
+    if doTrain:
+        _trainMODIS(deep)
 
-  # Do Training and Testing
-  # ------------------------
-  if doTrain:
-    _trainMODIS(deep)
+    if doTest:
+        _testMODIS(deep)
 
-  if doTest:
-    _testMODIS(deep)
-    SummaryPDFs(deep,varnames=['mRef670','mSre488'])
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            deep_out = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
+                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
+                    algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
 
-    if combinations:
-      SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
+            deep_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
+
+            deep_out.iTest[deep.outValid][deep.iTrain] = False
+            deep_out.expid = 'outlier.' + deep_out.expid
+
+            _testMODIS(deep_out)
+
+        if combinations:
+            SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
       
 
 

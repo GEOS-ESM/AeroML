@@ -24,6 +24,14 @@ MAPL:
   remote: ../MAPL.git
   tag: v2.55.1
   develop: develop
+
+GMAO_Shared:
+  local: ./src/Shared/@GMAO_Shared
+  remote: ../GMAO_Shared.git
+#  tag: v5.42.2
+  branch: feature/pcastell/add_viirs_ods
+  sparse: ./config/GMAO_Shared.sparse
+  develop: main
   
 GMAOpyobs:
   local: ./src/Shared/GMAO_Shared/GMAO_pyobs@

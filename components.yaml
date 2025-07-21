@@ -20,13 +20,13 @@ ecbuild:
   tag: geos/v1.4.0
 
 MAPL:
-  local: ./src/Shared/GMAO_Shared/MAPL@
+  local: ./src/Shared/MAPL@
   remote: ../MAPL.git
   tag: v2.55.1
   develop: develop
 
 GMAO_Shared:
-  local: ./src/Shared/@GMAO_Shared
+  local: ./src/Shared/GMAO_Shared@
   remote: ../GMAO_Shared.git
 #  tag: v5.42.2
   branch: feature/pcastell/add_viirs_ods
@@ -34,7 +34,7 @@ GMAO_Shared:
   develop: main
   
 GMAOpyobs:
-  local: ./src/Shared/GMAO_Shared/GMAO_pyobs@
+  local: ./src/Shared/GMAO_Shared@/GMAO_pyobs@
   remote: ../GMAOpyobs.git
   tag: v1.2.5
   develop: develop

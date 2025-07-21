@@ -25,9 +25,11 @@ CALCULATOR = {'mode': stats.mode,
 
 SCHANNELS = {'DT_LAND': ( 480., 670., 2250. ),
              'DB_LAND': ( 412., 488., 670. ),
+             'DB_DEEP': ( 412., 488., 670. ),
             }
 
 ALGO_ALIAS = dict( db_land = 'dpbl-l',
+                   db_deep = 'dpbl-l',
                    db_ocean = 'dpbl-o',
                    dt_land = 'corr-l',
                    dt_ocean = 'ea-o',
@@ -40,6 +42,7 @@ ALGO_ALIAS = dict( db_land = 'dpbl-l',
 #         ]
 
 ALGOS = ['db_land',
+         'db_deep',
          'db_ocean',
          ]
 
@@ -175,12 +178,16 @@ class VIIRS(Vx04_L2):
                  coll='002',verbose=0):
 
         Algo, surface = algo.split('_')
-        prod = 'AER{}'.format(Algo)
-        Files = sorted(glob('{}/{}/{}/{}_old/Level2/{}/{}/*nc'.format(l2_path,prod,inst,coll,year,str(julday).zfill(3))))
+        if inst == 'SNPP':
+            prod = 'VNPAER{}'.format(Algo)
+        elif 'NOAA' in inst:
+            prod = 'VN{}AER{}'.format(inst[-2:],Algo)
+
+        Files = sorted(glob('{}/Level2/{}/{}/{}/{}/*nc'.format(l2_path,prod,coll,year,str(julday).zfill(3))))
         Vx04_L2.__init__(self,Files,algo,
                               only_good=only_good,
                               SDS=SDS,
-                              Verb=verbose)   
+                              Verb=verbose)
 
         if self.nobs < 1:
             return # no obs, nothing to do
@@ -192,14 +199,17 @@ class VIIRS(Vx04_L2):
         for i,c in enumerate(self.rChannels):
             self.iGood = self.iGood & (self.reflectance[:,i]>0)
 
-        if algo in SCHANNELS:
+        if surface == "DEEP":
             for i,c in enumerate(self.sChannels):
-                self.iGood = self.iGood & (self.sfc_reflectance[:,i]>0)
+                self.iGood = self.iGood & ~self.sfc_reflectance[:,i].mask
+        elif surface == "LAND":
+            # 412 surface reflectance not used for vegetated surfaces
+            self.iGood = self.iGood & self.sfc_reflectance[:,0].mask & ~self.sfc_reflectance[:,1].mask & ~self.sfc_reflectance[:,2].mask
+
 
         if surface == "OCEAN":
             self.iGood = self.iGood & (self.GlintAngle > glint_thresh)
-
-        if surface == "LAND":
+        else:
             self.iGood = self.iGood & (self.ScatteringAngle < scat_thresh)
 
         if any(self.iGood) == False:
@@ -211,7 +221,7 @@ class VIIRS(Vx04_L2):
         # keep only good obs
         self.reduce(self.iGood)
 
-        if algo == 'DB_LAND':
+        if (algo == 'DB_LAND') or (algo == 'DB_DEEP'):
            self.aod = np.ones((self.nobs,4))
            self.aod[:,0] = self.aod3ch[:,0]
            self.aod[:,1] = self.aod3ch[:,1]
@@ -272,11 +282,14 @@ def createNC(ofile,options):
 
     # create variables
     for algo in ALGO_ALIAS:
-        varname = 'nval_AOD0550{}'.format(ALGO_ALIAS[algo])
-        varobj = nc.createVariable(varname,header[varname]['datatype'],header[varname]['dimensions'])
-        for attr in header[varname]:
-            if (attr != 'datatype') & (attr != 'dimensions'):
-                varobj.setncattr(attr,header[varname][attr])
+        if algo == 'db_deep':
+            pass
+        else:
+            varname = 'nval_AOD0550{}'.format(ALGO_ALIAS[algo])
+            varobj = nc.createVariable(varname,header[varname]['datatype'],header[varname]['dimensions'])
+            for attr in header[varname]:
+                if (attr != 'datatype') & (attr != 'dimensions'):
+                    varobj.setncattr(attr,header[varname][attr])
 
     for varname in xMETA_ANET+xMETA_MODIS:
         varobj = nc.createVariable(varname,header[varname]['datatype'],header[varname]['dimensions'])
@@ -360,6 +373,7 @@ def writeANET(iob,nc,anet,anetmatch):
 def writeMOD(iob,nc,algo,mod,mmatch,dist):
     if algo == 'dt_land'  : xVARS = xDT_LAND
     if algo == 'db_land'  : xVARS = xDB_LAND
+    if algo == 'db_deep'  : xVARS = xDB_LAND
     if algo == 'dt_ocean' : xVARS = xDT_OCEAN
     if algo == 'db_ocean' : xVARS = xDB_OCEAN
     # Write ocean variables
@@ -472,7 +486,7 @@ if __name__ == '__main__':
     DT      = 2  
     dType   = 'days'
     verbose = False
-    append  = True
+    overwrite  = False
 
 
 #   Parse command line options
@@ -523,9 +537,9 @@ if __name__ == '__main__':
                       help="verbose (default=%s)"\
                            %verbose )       
 
-    parser.add_option("-N", "--no_append", dest="append", default=append,action="store_false",
-                      help="change append mode to start new file or overwrite (default=%s)"\
-                           %append )    
+    parser.add_option("--overwrite", dest="overwrite", default=overwrite,action="store_true",
+                      help="overwrite existing file (default=%s)"\
+                           %overwrite ) 
 
     parser.add_option("-X", "--Dx", dest="Dx", default=Dx,
                       help="Radius around AERONET site in km (default=%s)"\
@@ -554,35 +568,11 @@ if __name__ == '__main__':
         os.makedirs(outpath)
 
     # outfile name
-    ofile = '{}/giant_C{}_10km_{}_v{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,enymd.strftime('%Y%m%d'))
-    oldfile = glob('{}/giant_C{}_10km_{}_v{}_*.nc'.format(outpath,options.coll,options.inst,options.version))
+    ofile = '{}/giant_C{}_10km_{}_v{}_{}_{}.nc'.format(outpath,options.coll,options.inst,options.version,nymd.strftime('%Y%m%d'),enymd.strftime('%Y%m%d'))
+    if os.path.exists(ofile) and (options.overwrite is False):
+        raise Exception('Outfile {} exists. Set --overwrite flag to clobber file'.format(ofile))    
 
-    # if you don't want to append, remove this version
-    if (not options.append) & (len(oldfile)>0):
-        os.remove(oldfile[0])
-
-    # look for file you are appending to, figure out what dates are in it.
-    if options.append:
-        if not oldfile:
-            raise Exception('Appendable file does not exist. Set append to false to start new file')
-
-        # get enddate from file
-        nc = Dataset(oldfile[0])
-        oldenddate = isoparse(chartostring(nc.variables['ISO_DateTime'][:])[-1]).date()
-        oldenddate = datetime(oldenddate.year,oldenddate.month,oldenddate.day)
-        nc.close()
-
-        if enymd <= oldenddate:
-            raise Exception('Already sampled up to or past this date. Remove {}, or set end date past {}'.format(oldfile[0],enymd.strftime('%Y%m%d')))
-
-        else:
-            #figure out starting date
-            nymd = oldenddate + timedelta(days=1)
-            os.rename(oldfile[0],ofile)
-
-
-
-
+    options.append = False        
 
     while nymd <= enymd:
         julday   = nymd - datetime(nymd.year,1,1) + timedelta(days=1)
@@ -601,7 +591,7 @@ if __name__ == '__main__':
                 mod.__dict__[algo] = VIIRS(options.l2_path,options.inst,algo.upper(),nymd.year,julday.days,
                         coll=options.coll,
                         cloud_thresh=0.7,
-                        verbose=options.verbose)
+                        verbose=options.verbose)                
 
                 # do colocation
                 if mod.__dict__[algo].nobs > 0:

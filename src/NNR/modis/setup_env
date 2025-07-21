@@ -1,0 +1,72 @@
+#!/usr/bin/sh
+#=======================================================================
+# name - setup_env.csh
+# purpose -
+#   This script can be "sourced" from the bash shell to set environment
+#   variables and modules needed for building and running the GEOS system.
+#
+
+# Add AeroApps to the path
+#----------------
+setenv AERODIR $NOBACKUP/workspace/AeroML_update_viirs_nnr/AeroML
+setenv PATH ${AERODIR}/install/bin/NNR/:${PATH}
+setenv PATH ${AERODIR}/install/bin/NNR/modis/:$PATH
+
+# Set Python PATH
+#-----------------
+setenv PYTHONPATH ${AERODIR}/install/lib
+setenv PYTHONPATH ${AERODIR}/install/lib/Python:$PYTHONPATH
+setenv PYTHONPATH ${AERODIR}/install/lib/Python/pyabc:$PYTHONPATH
+setenv PYTHONPATH ${AERODIR}/install/lib/Python/pyobs:$PYTHONPATH
+
+# source AeroApps modules
+source ${AERODIR}/env@/g5_modules
+
+# Path for shared object libraries
+#------------------
+setenv LD_LIBRARY_PATH ${AERODIR}/install/lib:$LD_LIBRARY_PATH
+setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${BASEDIR}/`uname -s`/lib
+
+# Link what we need for this project
+#------------------------------------
+setenv BIN ${AERODIR}/install/bin/NNR/modis
+set files=(create_giant_coll.py create_giant.py giantHeader.txt sample_cxalbedo.py sample_mcd43c1.py sample_merra.py sample_merra_tqv_to3.py sample_geosit.py sample_geosit_tqv_to3.py)
+foreach fname  ($files)
+  if ( ! -l $fname )  then
+    ln -s ${BIN}/$fname .
+  endif
+end
+
+set files=(giantHeader.txt tavg1_2d_aer_Nx tavg1_2d_slv_Nx)
+foreach fname  ($files)
+  if ( ! -l $fname )  then
+    ln -s ${BIN}/${fname} .
+  endif
+end
+
+# Copy what we need for this project
+# but don't overwrite if already setup
+# -------------------------------------
+set files=(run_create_giant.sh run_sample_cxalbedo.sh run_sample_mcd43c1.sh run_sample_merra.sh run_sample_merra_tqv_to3.sh run_sample_geosit.sh run_sample_geosit_tqv_to3.sh)
+foreach fname ($files)
+  if ( ! -f $fname )  then
+    cp ${BIN}/$fname .
+  endif
+end
+
+set files=(train_deep.py train_land.py train_ocean.py)
+foreach fname  ($files)
+  if ( ! -f $fname ) then
+    cp ${BIN}/$fname .
+  endif
+end
+
+# GEOS-IT opendap files
+# ------------------------
+setenv GEOSIT /css/gmao/geos-it/products/opendap/L576x361
+set files=(aer_tavg_3hr_glo_L576x361_slv slv_tavg_1hr_glo_L576x361_slv)
+foreach fname ($files)
+  if ( ! -l $fname )  then
+    ln -s ${GEOSIT}/$fname .
+  endif
+end

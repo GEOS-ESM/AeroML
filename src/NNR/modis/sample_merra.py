@@ -13,11 +13,14 @@ if __name__ == '__main__':
     #   --------------------------
     parser = argparse.ArgumentParser()
     parser.add_argument("giantFile",help="giant spreadhseet file to base sampling on")
+    parser.add_argument("syear",help="start year")
+    parser.add_argument("eyear",help="end year")
 
     args = parser.parse_args()
     outDir = os.path.dirname(args.giantFile)
     fname = os.path.basename(args.giantFile)
-    npzFile = outDir + '/' + fname[:-3] + '_MERRA2.npz'
+#    npzFile = outDir + '/' + fname[:-3] + '_MERRA2.npz'
+    npzFile = outDir + '/' + fname[:-3] + '_MERRA2_{}_{}.npz'.format(args.syear,args.eyear)
 
     g = GIANT(args.giantFile)
     g.sampleMERRA(npzFile=npzFile,Verbose=False)

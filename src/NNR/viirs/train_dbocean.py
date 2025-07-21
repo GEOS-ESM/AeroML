@@ -4,106 +4,160 @@
 """
 
 import os, sys
-from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS, flatten_list
-from   pyabc.abc_c6_aux           import SummarizeCombinations, SummaryPDFs
-
-
+from   pyabc.abc_viirs            import ABC_DB_Ocean, _trainMODIS, _testMODIS
+from   pyabc.abc_c6_aux           import SummarizeCombinations
+from   glob                       import glob
+import argparse
+import numpy as np
 
 if __name__ == "__main__":
-  # giantFile
-  giantFile = '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_20221201.nc'
 
-  # tymemax sets a truncation date when reading in giant file
-  # string with format YYYYMMDD
-  # None reads the entire datarecord
-  tymemax = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputs",
+                        help="python file with dictionary of inputs")
 
-  # number of hidden layers
-  nHLayers     = 1
+    args = parser.parse_args()
+
+    # read in dictionary of input parameters
+    s = open(args.inputs).read()
+    inputs = eval(s)
+
+    # --------------
+    # Setup Inputs
+    # -------------
+
+    # giantFile
+    giantFile = []
+    for gFile in inputs['giantFile']:
+        giantFile += sorted(glob(gFile))
+
+    aerFile = []
+    for aFile in inputs['aerFile']:
+        aerFile += sorted(glob(aFile))
+
+    # tymemax sets a truncation date when reading in giant file
+    # string with format YYYYMMDD
+    # None reads the entire datarecord
+    tymemax = inputs['tymemax']
+
+    # how many std dev to use for outlier removal. If < 0, don't do outlier removal
+    # default is 3
+    outliers = inputs['outliers']
+
+    # number of hidden layers
+    nHLayers     = inputs['nHLayers']
     
-  # number of nodes in hidden layers
-  # None uses the default of 200 coded in nn.py        
-  nHidden      = None
+    # number of nodes in hidden layers
+    # None uses the default of 200 coded in nn.py        
+    nHidden      = inputs['nHidden']
 
-  # do training on combinations of the inputs
-  combinations = False
+    # do training on combinations of the inputs
+    combinations = inputs['combinations']
 
-  # NN target variable name
-#  Target       = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870']
-  Target       = ['aAE440','aAE470','aAE500','aTau550','aAE660','aAE870']
+    # NN target variable name
+    Target       = inputs['Target']
 
-  # surface albedo variable name
-  # options are None, CoxMunkLUT, or CxAlbedo
-  # if CoxMunkLUT one needs to provide the coxmunk_lut option to ABC_Ocean, 
-  # otherwise default is used (default = '/nobackup/NNR/Misc/coxmunk_lut.npz')
-  # if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
-  Albedo       = None #['CxAlbedo']
+    # surface albedo variable name
+    # options are None, CoxMunkLUT, or CxAlbedo
+    # if CoxMunkLUT one needs to provide the coxmunk_lut option to ABC_Ocean, 
+    # otherwise default is used (default = '/nobackup/NNR/Misc/coxmunk_lut.npz')
+    # if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
+    Albedo       = inputs['Albedo']
 
-  # number of K-folds or training
-  # if None does not do K-folding, trains on entire dataset
-  K            = None
+    # number of K-folds or training
+    # if None does not do K-folding, trains on entire dataset
+    K            = inputs['K']
 
-  # Flags to Train or Test the DARK TARGET DATASET
-  doTrain      = True
-  doTest       = True
+    # Flags to Train or Test the DARK TARGET DATASET
+    doTrain      = inputs['doTrain']
+    doTest       = inputs['doTest']
 
-  # experiment name
-  expid        = 'candidate_6outputsAE_011'  
-  expid        = 'testing'
+    # experiment name
+    expid        = inputs['expid']
 
-  # Inputs that are always included
-  # this can be None
-#  Input_const  = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-#                  'mRef470','mRef550','mRef660', 'mRef870','mRef1200','mRef1600','mRef2100',
-#                  'fdu','fcc','fss']
-  Input_const = None
+    # Inputs that are always included
+    # this can be None
+    Input_const = inputs['Input_const']
 
-  # Inputs that can be varied across combinations
-  # if combinations flag is False, all of these inputs are used
-  # if combinations flag is True, all possible combinations of these inputs
-  # are tried
-  Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-                  'mRef412','mRef488','mRef550','mRef670', 'mRef865','mRef1240','mRef1640','mRef2250',
-                  'fdu','fcc','fss'] +\
-                 ['wind'] +\
-                 ['cloud'] +\
-                 ['algflag'] +\
-                 ['atype'] +\
-                 ['colO3'] +\
-                 ['water']                  
 
-#  Input_nnr    = ['CxAlbedo470','CxAlbedo550','CxAlbedo660','CxAlbedo870','CxAlbedo1200','CxAlbedo1600','CxAlbedo2100']
-#  Input_nnr    = ['wind']
+    # Inputs that can be varied across combinations
+    # if combinations flag is False, all of these inputs are used
+    # if combinations flag is True, all possible combinations of these inputs
+    # are tried
+    Input_nnr = inputs['Input_nnr']
 
-  # Additional variables that the inputs are filtered by
-  # standard filters are hardcoded in the abc_c6.py scripts  
-  aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'] +\
-                 ['colO3'] +\
-                 ['water']
+    # Inputs I want to the the log-transform of
+    lInput_nnr = inputs['lInput_nnr']
 
-  # --------------
-  # End of Inputs
-  # -------------
+    # Additional variables that the inputs are filtered by
+    # standard filters are hardcoded in the abc_c6.py scripts 
+    aFilter  = inputs['aFilter']
 
-  # get satellite name from giantFile name
-  sat = giantFile.split('_')[-3]
+    # fraction that defines whether a pixel is domniated by a species
+    f_balance = inputs['f_balance']
 
-  if sat == 'SNPP':
-    retrieval    = 'VS_DB_OCEAN'
-  if sat == 'NOAA20':
-    retrieval    = 'VN20_DB_OCEAN'
+    # flag to do both species and target AOD balancing
+    q_balance = inputs['q_balance']
+    q_balance_enhance = inputs['q_balance_enhance']
 
-  expid        = '{}_{}'.format(retrieval,expid)
+    # minimum number of points to have in a size bin for balancing
+    # this is an adhoc parameter, but if it's too small, no obs will make
+    # it through balancing procedure
+    minN = inputs['minN']
 
-  if Input_const is not None:
-    InputMaster = list((Input_const,) + tuple(Input_nnr))
-  else:
-    InputMaster = Input_nnr
+    # ignore a species when doing species balancing step
+    # is spc_aod_balance
+    # ignore SS dominated over land because these obs are so few
+    fignore = inputs['fignore']
 
-  # Train/Test on full dataset
-  # -------------------------------------
-  if doTrain or doTest:
-    ocean = ABC_DB_Ocean(giantFile,Albedo=Albedo,verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=1)  
+    # number of size bins to use in aod balancing
+    # default is 6
+    nbins = inputs['nbins']
+
+    # cloud threshhold for filtering
+    # default if not provided is 0.7
+    cloud_thresh = inputs['cloud_thresh']
+
+    # take natural log of target aod
+    # detault is true
+    laod = inputs['laod']
+
+    # offset to protect against negative numbers.
+    # detault is 0.01
+    logoffset = inputs['logoffset']
+
+    # standard scale the targets
+    scale = inputs['scale']
+
+    # --------------
+    # End of Inputs
+    # -------------
+
+    # get satellite name from giantFile name
+    if type(giantFile) is str:
+        sat = giantFile.split('_')[-4]
+    else:
+        sat = giantFile[0].split('_')[-4]
+
+    if sat == 'SNPP':
+        retrieval    = 'VS_DB_OCEAN'
+    if sat == 'NOAA20':
+        retrieval    = 'VN20_DB_OCEAN'
+
+    expid        = '{}_{}'.format(retrieval,expid)
+
+    if Input_const is not None:
+        InputMaster = list((Input_const,) + tuple(Input_nnr))
+    else:
+        InputMaster = Input_nnr
+
+    # Train/Test on full dataset
+    # -------------------------------------
+    if doTrain or doTest:
+        ocean = ABC_DB_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
+                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=outliers,
+                logoffset=logoffset,laod=laod,scale=scale)
+                           
     # Initialize class for training/testing
     # ---------------------------------------------
     ocean.setupNN(retrieval, expid,
@@ -113,18 +167,53 @@ if __name__ == "__main__":
                       Input_const  = Input_const,
                       Input_nnr    = Input_nnr,                                         
                       Target       = Target,                      
-                      K            = K)
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = f_balance,
+                      q_balance    = q_balance,
+                      q_balance_enhance = q_balance_enhance,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
 
 
-  # Do Training and Testing
-  # ------------------------
-  if doTrain:
-    _trainMODIS(ocean)
+    # Do Training and Testing
+    # ------------------------
+    if doTrain:
+        _trainMODIS(ocean)
 
-  if doTest:
-    _testMODIS(ocean)
-    SummaryPDFs(ocean,varnames=['mRef865','mRef488'])
-    if combinations:
-      SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='slope')
+    if doTest:
+        _testMODIS(ocean)
+
+        # if outlier were excluded, do an extra test with outliers included
+        if (outliers > 0) and (K is None):
+            ocean_out = ABC_DB_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
+                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=-1,
+                    logoffset=logoffset,laod=laod,scale=scale)        
+
+            ocean_out.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,
+                      Target       = Target,
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = 0,
+                      q_balance    = False,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)           
+
+            ocean_out.iTest[ocean.outValid][ocean.iTrain] = False
+            ocean_out.expid = 'outlier.' + ocean_out.expid
+
+            _testMODIS(ocean_out)
+
+
+        
+        if combinations:
+            SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='rmse')
       
 

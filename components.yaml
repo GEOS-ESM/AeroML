@@ -38,7 +38,7 @@ GMAO_perllib:
   remote: ../GMAO_perllib.git
   tag: v1.1.0
   develop: main
-  
+
 GMAOpyobs:
   local: ./src/Shared/GMAO_Shared@/GMAO_pyobs@
   remote: ../GMAOpyobs.git

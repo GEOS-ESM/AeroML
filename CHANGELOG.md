@@ -7,6 +7,18 @@
 
 ### Changed
 
+
+## [v1.3.0] 2025-07-25
+### Added
+- add MAPL needed by nnr scripts
+
+### Fixed
+
+### Changed
+- remove duplicate GMAO_Shared scripts.  Now use GMAO_Shared repo imported through components
+- Updates to some NNR scripts that came from last merge commits in AeroApps
+
+
 ## [v1.2.0] 2025-07-16
 ### Added
 

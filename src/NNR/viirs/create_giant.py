@@ -35,16 +35,16 @@ ALGO_ALIAS = dict( db_land = 'dpbl-l',
                    dt_ocean = 'ea-o',
                    aeronet = 'intrp' )
 
-#ALGOS = ['dt_land',
-#         'dt_ocean',
-#         'db_land',
-#         'db_ocean',
-#         ]
-
-ALGOS = ['db_land',
-         'db_deep',
+ALGOS = ['dt_land',
+         'dt_ocean',
+         'db_land',
          'db_ocean',
          ]
+
+#ALGOS = ['db_land',
+#         'db_deep',
+#         'db_ocean',
+#         ]
 
 xMETA = ('nval-o','nval-l','nval-d','nval-a')
 

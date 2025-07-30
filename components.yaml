@@ -42,5 +42,6 @@ GMAO_perllib:
 GMAOpyobs:
   local: ./src/Shared/GMAO_Shared@/GMAO_pyobs@
   remote: ../GMAOpyobs.git
-  tag: v1.3.0
+  #  tag: v1.3.0
+  branch: feature/pcastell/add_noaa20
   develop: develop

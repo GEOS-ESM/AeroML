@@ -200,10 +200,10 @@ class VIIRS(Vx04_L2):
         for i,c in enumerate(self.rChannels):
             self.iGood = self.iGood & (self.reflectance[:,i]>0)
 
-        if surface == "DEEP":
+        if algo in ["DB_DEEP","DT_LAND"]:
             for i,c in enumerate(self.sChannels):
                 self.iGood = self.iGood & ~self.sfc_reflectance[:,i].mask
-        elif surface == "LAND":
+        elif algo == "DB_LAND":
             # 412 surface reflectance not used for vegetated surfaces
             self.iGood = self.iGood & self.sfc_reflectance[:,0].mask & ~self.sfc_reflectance[:,1].mask & ~self.sfc_reflectance[:,2].mask
 

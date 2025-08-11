@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     if sat == 'SNPP':
         retrieval    = 'VS_DB_DEEP'
-    if sat == 'NOAA20':
+    if sat in ['NOAA20','NOAA-21']:
         retrieval    = 'VN20_DB_DEEP'
 
     expid        = '{}_{}'.format(retrieval,expid)

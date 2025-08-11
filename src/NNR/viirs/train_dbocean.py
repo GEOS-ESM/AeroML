@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
     if sat == 'SNPP':
         retrieval    = 'VS_DB_OCEAN'
-    if sat == 'NOAA20':
+    if sat in ['NOAA20','NOAA-20']:
         retrieval    = 'VN20_DB_OCEAN'
 
     expid        = '{}_{}'.format(retrieval,expid)

@@ -469,7 +469,7 @@ class ABC(object):
           self.iValid = self.iValid & oiValid
 
 #---------------------------------------------------------------------------- 
-class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
+class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC,EVAL):
 
     def __init__ (self,fname, 
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',

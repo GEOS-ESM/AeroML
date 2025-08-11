@@ -724,7 +724,7 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
         self.verbose = verbose
         self.laod = laod
         self.logoffset = logoffset
-        self.scale = self.scale
+        self.scale = scale
 
         DT_LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 

@@ -475,6 +475,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
                   outliers=3., 
                   laod=True,
+                  scale=False,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -509,6 +510,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.scale   = self.scale
         self.logoffset = logoffset
 
         DT_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
@@ -547,14 +549,23 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
         # does not retrieve.  However, there are a few cases (~200) where this does not happen.
         # the GlingAngle is very close to 40, greater than 38.  Not sure why these get through.
 
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-              
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
+        self.reduce(self.iValid)
         self.iValid = np.ones(self.lon.shape).astype(bool)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)            
+              
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------

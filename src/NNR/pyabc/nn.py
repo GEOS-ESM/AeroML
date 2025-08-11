@@ -13,10 +13,10 @@ from   matplotlib.pyplot import  xlabel, ylabel, title, grid, savefig, legend
 from   numpy             import  c_ as cat
 from   numpy             import  random, sort, pi, load, cos, log, std, exp
 from   numpy             import  reshape, arange, ones, zeros, interp
-from   numpy             import  meshgrid, concatenate
+from   numpy             import  meshgrid, concatenate, mgrid
 import numpy             as      np
 from   matplotlib        import  ticker
-from   scipy             import  stats, mgrid
+from   scipy             import  stats
 from   sklearn.model_selection import KFold
 #..............................................................
 class aodFormat(ticker.Formatter):

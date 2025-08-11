@@ -1037,7 +1037,7 @@ class DB_OCEAN(GIANT):
     def __init__(self,filename,tymemax=None):
         GIANT.__init__(self,filename,xVars=xDB_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
-            self.ident = 'vsdto'
+            self.ident = 'vsdbo'
         if type(filename) is str:
            fname = filename
         else:

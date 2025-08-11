@@ -992,6 +992,8 @@ class DT_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdtl'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndtl'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1014,6 +1016,8 @@ class DT_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndto'
         if type(filename) is str:
            fname = filename
         else:
@@ -1038,6 +1042,8 @@ class DB_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbo'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbo'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1062,6 +1068,8 @@ class DB_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbl'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbl'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1084,6 +1092,8 @@ class DB_DEEP(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbd'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbd'            
         if type(filename) is str:
            fname = filename
         else:

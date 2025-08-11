@@ -78,11 +78,34 @@ dict(
     f_balance = 0.5,
 
 # flag to do both species and target AOD balancing
-# default is True
+# q_balance default is True
+# q_balance_enhance default is False - this option balances by enhancing the numver of data points in size bins rather than removing data
 # minN is the minimum number of points in a size bin
 # if this is too small, very few obs will make it through
 # default is 500
+# fignore is the list species to not balance
+# nbins is the number of size bins to use, default is 6
     q_balance = True,
+    q_balance_enhance = False,
     minN = 500,
+    fignore = [],
+    nbins = 6,
+
+# cloud threshhold for filtering
+# default if not provided is 0.7
+    cloud_thresh = 0.7,
+
+# take natural log of target aod
+# detault is true
+    laod = True,
+
+# offset to protect against negative numbers.
+# detault is 0.01
+    logoffset = 0.01,
+
+# standard scale the targets
+# default is False
+    scale = False,
+
 )
 

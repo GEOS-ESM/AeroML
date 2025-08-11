@@ -510,7 +510,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
-        self.scale   = self.scale
+        self.scale   = scale
         self.logoffset = logoffset
 
         DT_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass

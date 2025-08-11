@@ -593,13 +593,13 @@ if __name__ == '__main__':
         # get aeronet data
         anet = AERONET(options.anet_path,nymd,options.version,verbose=options.verbose)
 
-        mod  = HOLDER()
-        match = HOLDER()
-        if anet.nobs > 0:
-            # get modis data for each algorithm
+        for algo in ALGOS:
+            print('Working on: ', algo)
             mod  = HOLDER()
             match = HOLDER()
-            for algo in ALGOS:
+            
+            if anet.nobs > 0:
+                # get modis data for each algorithm
                 mod.__dict__[algo] = VIIRS(options.l2_path,options.inst,algo.upper(),nymd.year,julday.days,
                         coll=options.coll,
                         cloud_thresh=0.7,
@@ -612,15 +612,13 @@ if __name__ == '__main__':
                     match.__dict__[algo] = HOLDER()
                     match.__dict__[algo].nmatches = 0
                     
-        else:
-            for algo in ALGOS:
+            else:
                 match.__dict__[algo] = HOLDER()
                 match.__dict__[algo].nmatches = 0
                 mod.__dict__[algo] = HOLDER()
                 mod.__dict__[algo].nobs = 0
 
-        # Write matches to file
-        for algo in ALGOS:
+            # Write matches to file
             writeNC(ofile,algo,mod,anet,match,options)
 
         nymd += timedelta(days=1)

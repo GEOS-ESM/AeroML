@@ -745,32 +745,37 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
                       (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef480 > 0)          & \
+                      (self.mRef550 > 0)          & \
                       (self.mRef670 > 0)          & \
+                      (self.mRef860 > 0)          & \
+                      (self.mRef1240 > 0)          & \
+                      (self.mRef1600 > 0)          & \
                       (self.mRef2250 > 0)         & \
                       (self.mSre480 >  0.0)       & \
                       (self.mSre670 >  0.0)       & \
                       (self.mSre2250>  0.0)       
 
-#                      (self.mRef412 > 0)          & \
-#                      (self.mRef440 > 0)          & \
-#                      (self.mRef550 > 0)          & \
-#                      (self.mRef870 > 0)          & \
-#                      (self.mRef1200 > 0)         & \
-#                      (self.mRef1600 > 0)         & \
 
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
 
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)        
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0 :
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------

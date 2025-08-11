@@ -265,6 +265,7 @@ class GIANT(object):
         Path = [Path]
 
     if 'SNPP' in Path[0]:      self.sat = 'SNPP'
+    elif 'NOAA-20' in Path[0]: self.sat = 'NOAA-20'
     else:                      self.sat = 'Unknown'    
 
     self.only_good = only_good

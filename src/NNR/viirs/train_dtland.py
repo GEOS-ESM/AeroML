@@ -115,14 +115,6 @@ if __name__ == "__main__":
     # default if not provided is 0.7
     cloud_thresh = inputs['cloud_thresh']
 
-    # algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
-    #            None - don't filter, use all pixels
-    #            0 - hybrid (heterogenous surface)
-    #            1 - vegetated surface
-    #            2 - bright surface
-    #            3 - mixed
-    algflag = inputs['algflag']
-
     # take natural log of target aod
     # detault is true
     laod = inputs['laod']
@@ -161,7 +153,7 @@ if __name__ == "__main__":
     if doTrain or doTest:
         deep = ABC_DT_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
                 verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale)  
+                logoffset=logoffset,outliers=outliers,laod=laod,scale=scale)  
 
         # Initialize class for training/testing
         # ---------------------------------------------
@@ -193,7 +185,7 @@ if __name__ == "__main__":
         if (outliers > 0) and (K is None):
             deep_out = ABC_DT_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
                     verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                    algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
+                    outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
 
             deep_out.setupNN(retrieval, expid,
                       nHidden      = nHidden,

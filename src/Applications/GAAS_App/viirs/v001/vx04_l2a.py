@@ -30,7 +30,11 @@ Ident = dict( vsnppdto = ('SNPP','dt_ocean'),
               vsnppdtl = ('SNPP','dt_land'),
               vsnppdbo = ('SNPP','db_ocean'),
               vsnppdbl = ('SNPP','db_land'),
-              vsnppdbd = ('SNPP','db_deep')
+              vsnppdbd = ('SNPP','db_deep'),
+              vn20dto = ('SNPP','dt_ocean'),
+              vn20dtl = ('NOAA-20','dt_land'),
+              vn20dto = ('NOAA-20','dt_ocean'),
+              vn20dbd = ('NOAA-20','db_deep')
             )
 
 #---------------------------------------------------------------------

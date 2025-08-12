@@ -140,11 +140,11 @@ class Vx04_NNR(Vx04_L2):
 
         if ("LAND" in algo) or ("DEEP" in algo):
             self.iGood = self.iGood & (self.ScatteringAngle < scat_thresh)
-            if "LAND" in algo:
+            if algo == "DB_LAND":
                 # 412 surface reflectance not used for vegetated surfaces
                 self.iGood = self.iGood & self.sfc_reflectance[:,0].mask & ~self.sfc_reflectance[:,1].mask & ~self.sfc_reflectance[:,2].mask
 
-            elif "DEEP" in algo:
+            elif algo in ["DB_DEEP","DT_LAND"]:
                 for i,c in enumerate(self.sChannels):
                     self.iGood = self.iGood & ~self.sfc_reflectance[:,i].mask
 
@@ -511,8 +511,8 @@ class Vx04_NNR(Vx04_L2):
             k = list(self.channels).index(550)
             aod550 = np.ma.array(self.aod_[self.iGood,k])
             aod550.mask = np.zeros(len(aod550)).astype(bool)
-            Lon = self.Longitude[self.iGood]
-            Lat = self.Latitude[self.iGood]
+            Lon = self.lon[self.iGood]
+            Lat = self.lat[self.iGood]
             gIndex = np.arange(self.nobs)[self.iGood]
             iOutliers = []
             count = 0

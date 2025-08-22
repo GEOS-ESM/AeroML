@@ -72,6 +72,7 @@ if __name__ == "__main__":
     coll = '002'
     res = 'c'
     nsyn = 8
+    DT_cld_coll = None
     cloud_thresh = 0.70
     cloudFree = None
     aodmax = 1.0
@@ -124,6 +125,9 @@ if __name__ == "__main__":
     parser.add_option("-r", "--res", dest="res", default=res,
                       help="Resolution for gridded output (default=%s)"\
                            %res )
+
+    parser.add_option("--DT_cld_coll", dest="DT_cld_coll",default=DT_cld_coll,
+                      help="utilize DT cloud mask for DB algorithm (default=None, do not use)")
 
     parser.add_option("--cloud_thresh", dest="cloud_thresh", default=cloud_thresh,type='float',
                       help="Cloud fractions threshhold for good data (default=%f)"\
@@ -232,6 +236,7 @@ if __name__ == "__main__":
 
     viirs = Vx04_NNR(options.l2_path,sat,algo.upper(),syn_time,aer_x,
                       coll=options.coll,
+                      DT_cld_coll=options.DT_cld_coll,
                       cloud_thresh=options.cloud_thresh,
                       cloudFree=options.cloudFree,
                       aodmax=options.aodmax,

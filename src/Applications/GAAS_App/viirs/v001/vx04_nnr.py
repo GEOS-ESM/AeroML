@@ -7,7 +7,7 @@ Modified to work for VIIRS.  Feb 2023 P. Castellanos
 
 """
 import os, sys
-from   pyobs.vx04 import Vx04_L2, MISSING, granules, SDS 
+from   pyobs.vx04 import Vx04_L2, MISSING, granules, SDS, granulePairs 
 from   ffnet       import loadnet
 import numpy       as     np
 
@@ -61,6 +61,7 @@ class Vx04_NNR(Vx04_L2):
     """
 
     def __init__(self,l2_path,sat,algo,syn_time,aer_x,
+                 DT_cld_coll=None,
                  cloud_thresh=0.70,
                  glint_thresh=40.0,
                  scat_thresh=170.0,
@@ -86,6 +87,7 @@ class Vx04_NNR(Vx04_L2):
         Optional parameters:
         glint_thresh --- glint angle threshhold
         scat_thresh  --- scattering angle thresshold
+        DT_cld_coll   --- collection version of DT retrieval to use for DB cloud mask
         cloud_tresh  --- cloud fraction threshhold
         cloudFree    --- cloud fraction threshhold for assuring no cloud contaminations when aod is > aodmax
                         if None, no cloud free check is made
@@ -105,6 +107,7 @@ class Vx04_NNR(Vx04_L2):
 
         self.verbose = verbose
         self.algo    = algo
+        self.DT_cld_coll = DT_cld_coll
         self.cloudFree = cloudFree
         self.aodmax = aodmax
         self.aodSTD = aodSTD
@@ -118,13 +121,23 @@ class Vx04_NNR(Vx04_L2):
         # set anet_wav to True so MODIS wavelengths align with AERONET
         # Needed for ODS files
         # -------------------------------------------------------------
-        Files = granules(l2_path,algo,sat,syn_time,coll=coll,nsyn=nsyn)
-        Vx04_L2.__init__(self,Files,algo,syn_time=syn_time,nsyn=nsyn,
-                              only_good=True,
-                              SDS=SDS,
-                              alias=ALIAS,
-                              Verb=verbose,
-                              anet_wav=True)           
+        if DT_cld_coll is not None and "DB" in algo:
+            Files, DTFiles = granulePairs(l2_path,sat,syn_time,collDT=DT_cld_coll,collDB=coll,nsyn=nsyn)
+            Vx04_L2.__init__(self,Files,algo,syn_time=syn_time,nsyn=nsyn,
+                                  only_good=True,
+                                  SDS=SDS,
+                                  alias=ALIAS,
+                                  Verb=verbose,
+                                  anet_wav=True,
+                                  use_DT_cld=DTFiles)            
+        else:
+            Files = granules(l2_path,algo,sat,syn_time,coll=coll,nsyn=nsyn)
+            Vx04_L2.__init__(self,Files,algo,syn_time=syn_time,nsyn=nsyn,
+                                  only_good=True,
+                                  SDS=SDS,
+                                  alias=ALIAS,
+                                  Verb=verbose,
+                                  anet_wav=True)           
         if "pixel_elevation" in self.__dict__:
             self.pixel_elevation = self.pixel_elevation*1e-4
 

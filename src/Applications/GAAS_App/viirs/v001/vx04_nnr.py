@@ -62,6 +62,7 @@ class Vx04_NNR(Vx04_L2):
 
     def __init__(self,l2_path,sat,algo,syn_time,aer_x,
                  DT_cld_coll=None,
+                 use_DT_filter=False,
                  cloud_thresh=0.70,
                  glint_thresh=40.0,
                  scat_thresh=170.0,
@@ -88,6 +89,7 @@ class Vx04_NNR(Vx04_L2):
         glint_thresh --- glint angle threshhold
         scat_thresh  --- scattering angle thresshold
         DT_cld_coll   --- collection version of DT retrieval to use for DB cloud mask
+        use_DT_filter --- filter out DB data if a DT retrieval is available
         cloud_tresh  --- cloud fraction threshhold
         cloudFree    --- cloud fraction threshhold for assuring no cloud contaminations when aod is > aodmax
                         if None, no cloud free check is made
@@ -129,7 +131,8 @@ class Vx04_NNR(Vx04_L2):
                                   alias=ALIAS,
                                   Verb=verbose,
                                   anet_wav=True,
-                                  use_DT_cld=DTFiles)            
+                                  use_DT_cld=DTFiles,
+                                  use_DT_filter=use_DT_filter)            
         else:
             Files = granules(l2_path,algo,sat,syn_time,coll=coll,nsyn=nsyn)
             Vx04_L2.__init__(self,Files,algo,syn_time=syn_time,nsyn=nsyn,

@@ -73,6 +73,7 @@ if __name__ == "__main__":
     res = 'c'
     nsyn = 8
     DT_cld_coll = None
+    use_DT_filter = False
     cloud_thresh = 0.70
     cloudFree = None
     aodmax = 1.0
@@ -129,6 +130,9 @@ if __name__ == "__main__":
     parser.add_option("--DT_cld_coll", dest="DT_cld_coll",default=DT_cld_coll,
                       help="utilize DT cloud mask for DB algorithm (default=None, do not use)")
 
+    parser.add_option("--use_DT_filter",action="store_true", dest="use_DT_filter",default=False,
+                      help="Filter out DB retrievals if DT ob is present (default=False)")
+
     parser.add_option("--cloud_thresh", dest="cloud_thresh", default=cloud_thresh,type='float',
                       help="Cloud fractions threshhold for good data (default=%f)"\
                            %cloud_thresh )    
@@ -173,9 +177,9 @@ if __name__ == "__main__":
     if len(args) == 2:
         ident, isotime = args
         sat, algo = Ident[ident]
-        prod = sat + '04'
+        prod = sat 
     else:
-        parser.error("must have 3 arguments: ident, date and time")
+        parser.error("must have 2 arguments: ident, isotime")
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         
@@ -237,6 +241,7 @@ if __name__ == "__main__":
     viirs = Vx04_NNR(options.l2_path,sat,algo.upper(),syn_time,aer_x,
                       coll=options.coll,
                       DT_cld_coll=options.DT_cld_coll,
+                      use_DT_filter=options.use_DT_filter,
                       cloud_thresh=options.cloud_thresh,
                       cloudFree=options.cloudFree,
                       aodmax=options.aodmax,

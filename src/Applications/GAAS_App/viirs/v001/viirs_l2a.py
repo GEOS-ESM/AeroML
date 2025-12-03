@@ -57,6 +57,13 @@ if __name__ == "__main__":
     except:
         pass
 
+    try:
+        use_DT_filter = cf('VIIRS_L2A_USE_DT_FILTER')
+        if use_DT_filter.upper() == 'YES':
+            Options += " --use_DT_filter" 
+    except:
+        pass
+
 
     try:
         cloud_thresh = cf('VIIRS_L2A_CLOUD_THRESH')

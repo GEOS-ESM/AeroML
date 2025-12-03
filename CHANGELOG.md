@@ -16,6 +16,7 @@
 - added NOAA20 to kx list
 - update training to include VIIRS DT and NOAA-20
 - add balancing of inputs and outputs based on quartiles for training
+- added configuration files for the NOAA-20 v001 NNR model
  
 ### Changed
 - Updated GMAOpyobs to v1.5.0

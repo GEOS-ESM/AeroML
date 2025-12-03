@@ -7,6 +7,18 @@
 
 ### Changed
 
+## [v1.4.0] 2025-12-03
+
+### Added
+- added option to specify which VIIRS collection is used
+- added option to use DT cloud fraction to filter DB
+- added option to filter out DB obs in a DT ob is available
+- added NOAA20 to kx list
+- update training to include VIIRS DT and NOAA-20
+- add balancing of inputs and outputs based on quartiles for training
+ 
+### Changed
+- Updated GMAOpyobs to v1.5.0
 
 ## [v1.3.0] 2025-07-25
 ### Added

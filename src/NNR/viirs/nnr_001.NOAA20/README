@@ -1,0 +1,5 @@
+These are the training configurations that were used to create the v001 version of the VIIRS NOAA-20 NNR product
+The version of the NOAA-20 datasets used are all v002.
+The internal version numbering corresponds to different trial training configurations.
+Netfiles the correspond to these models can be found on discover in:
+/discover/nobackup/projects/gmao/iesa/aerosol/data/AeroObs/VIIRS_NNR/noaa20_netfiles/v001

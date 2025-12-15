@@ -469,12 +469,13 @@ class ABC(object):
           self.iValid = self.iValid & oiValid
 
 #---------------------------------------------------------------------------- 
-class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
+class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC,EVAL):
 
     def __init__ (self,fname, 
                   coxmunk_lut='/nobackup/NNR/Misc/coxmunk_lut.npz',
                   outliers=3., 
                   laod=True,
+                  scale=False,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -509,6 +510,7 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
 
         self.verbose = verbose
         self.laod    = laod
+        self.scale   = scale
         self.logoffset = logoffset
 
         DT_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
@@ -547,14 +549,23 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC):
         # does not retrieve.  However, there are a few cases (~200) where this does not happen.
         # the GlingAngle is very close to 40, greater than 38.  Not sure why these get through.
 
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-              
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
+        self.reduce(self.iValid)
         self.iValid = np.ones(self.lon.shape).astype(bool)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0:
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)            
+              
             
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------
@@ -713,7 +724,7 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
         self.verbose = verbose
         self.laod = laod
         self.logoffset = logoffset
-        self.scale = self.scale
+        self.scale = scale
 
         DT_LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -734,32 +745,37 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
                       (self.cloud >= 0)           & \
                       (self.ScatteringAngle<170.) & \
                       (self.mRef480 > 0)          & \
+                      (self.mRef550 > 0)          & \
                       (self.mRef670 > 0)          & \
+                      (self.mRef860 > 0)          & \
+                      (self.mRef1240 > 0)          & \
+                      (self.mRef1600 > 0)          & \
                       (self.mRef2250 > 0)         & \
                       (self.mSre480 >  0.0)       & \
                       (self.mSre670 >  0.0)       & \
                       (self.mSre2250>  0.0)       
 
-#                      (self.mRef412 > 0)          & \
-#                      (self.mRef440 > 0)          & \
-#                      (self.mRef550 > 0)          & \
-#                      (self.mRef870 > 0)          & \
-#                      (self.mRef1200 > 0)         & \
-#                      (self.mRef1600 > 0)         & \
 
         # Filter by additional variables
         # ------------------------------
         self.addFilter(aFilter)
 
-        
-        # Outlier removal based on log-transformed AOD
-        # --------------------------------------------
-        self.outlierRemoval(outliers)
-
         # Reduce the Dataset
         # --------------------
-        self.reduce(self.iValid)                    
-        self.iValid = np.ones(self.lon.shape).astype(bool)        
+        self.reduce(self.iValid)
+        self.iValid = np.ones(self.lon.shape).astype(bool)
+
+        # Outlier removal based on log-transformed AOD
+        # --------------------------------------------
+        if outliers > 0 :
+            self.outlierRemoval(outliers)
+            # save the indeces to be used for testing on the outliers later
+            self.outValid = np.arange(self.nobs)[self.iValid]
+
+            # Reduce the Dataset
+            # --------------------
+            self.reduce(self.iValid)
+            self.iValid = np.ones(self.lon.shape).astype(bool)
 
         # Angle transforms: for NN work we work with cosine of angles
         # -----------------------------------------------------------

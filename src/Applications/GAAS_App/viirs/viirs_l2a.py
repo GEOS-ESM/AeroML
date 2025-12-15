@@ -52,6 +52,20 @@ if __name__ == "__main__":
     if   cf('VIIRS_L2A_VERBOSE').upper() == 'YES': Options += " -v"
 
     try:
+        DT_cld_coll = cf('VIIRS_L2A_DT_CLD_COLL')
+        Options += " --DT_cld_coll=" + DT_cld_coll
+    except:
+        pass
+
+    try:
+        use_DT_filter = cf('VIIRS_L2A_USE_DT_FILTER')
+        if use_DT_filter.upper() == 'YES':
+            Options += " --use_DT_filter" 
+    except:
+        pass
+
+
+    try:
         cloud_thresh = cf('VIIRS_L2A_CLOUD_THRESH')
         Options += " --cloud_thresh=" + cloud_thresh
     except:

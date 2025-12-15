@@ -7,6 +7,21 @@
 
 ### Changed
 
+## [v1.4.0] 2025-12-03
+
+### Added
+- added option to specify which VIIRS collection is used
+- added option to use DT cloud fraction to filter DB
+- added option to filter out DB obs in a DT ob is available
+- added NOAA20 to kx list
+- update training to include VIIRS DT and NOAA-20
+- add balancing of inputs and outputs based on quartiles for training
+- added configuration files for the NOAA-20 v001 NNR model
+- added a "standard" pcf file for MODIS and NOAA-20 that contains the standard data stream paths
+ 
+### Changed
+- Updated GMAOpyobs to v1.5.0
+- Updated the NOAA20 pcf files to GEOS-FP paths
 
 ## [v1.3.0] 2025-07-25
 ### Added

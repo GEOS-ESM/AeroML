@@ -44,15 +44,12 @@ xDT_LAND = ("mean_AOD0480corr-l",
         "mean_AOD0550corr-l",
         "mean_AOD0670corr-l",
         "mean_AOD2250corr-l",
-#        "mean_mref0412-l",
-#        "mean_mref0443-l",
         "mean_mref0480-l",
-#        "mean_mref0550-l",
+        "mean_mref0550-l",
         "mean_mref0670-l",
-#        "mean_mref0745-l",
-#        "mean_mref0870-l",
-#        "mean_mref1200-l",
-#        "mean_mref1600-l",
+        "mean_mref0860-l",
+        "mean_mref1240-l",
+        "mean_mref1600-l",
         "mean_mref2250-l",
         "mean_surfre0480-l",
         "mean_surfre0670-l",
@@ -161,15 +158,12 @@ ALIAS = {
                 "mean_AOD0550corr-l"    : 'mTau550',
                 "mean_AOD0670corr-l"    : 'mTau670',
                 "mean_AOD2250corr-l"    : 'mTau2250',
-#                "mean_mref0412-l"       : 'mRef412',
-#                "mean_mref0443-l"       : 'mRef440',
                 "mean_mref0480-l"       : 'mRef480',
-#                "mean_mref0550-l"       : 'mRef550',
+                "mean_mref0550-l"       : 'mRef550',
                 "mean_mref0670-l"       : 'mRef670',
-#                "mean_mref0745-l"       : 'mRef745',
-#                "mean_mref0870-l"       : 'mRef870',
-#                "mean_mref1200-l"       : 'mRef1200',
-#                "mean_mref1600-l"       : 'mRef1600',
+                "mean_mref0860-l"       : 'mRef860',
+                "mean_mref1240-l"       : 'mRef1240',
+                "mean_mref1600-l"       : 'mRef1600',
                 "mean_mref2250-l"       : 'mRef2250',
                 "mean_surfre0480-l"     : 'mSre480',
                 "mean_surfre0670-l"     : 'mSre670',
@@ -271,6 +265,7 @@ class GIANT(object):
         Path = [Path]
 
     if 'SNPP' in Path[0]:      self.sat = 'SNPP'
+    elif 'NOAA-20' in Path[0]: self.sat = 'NOAA-20'
     else:                      self.sat = 'Unknown'    
 
     self.only_good = only_good
@@ -998,6 +993,8 @@ class DT_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdtl'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndtl'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1020,6 +1017,8 @@ class DT_OCEAN(GIANT):
         GIANT.__init__(self,filename,xVars=xDT_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdto'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndto'
         if type(filename) is str:
            fname = filename
         else:
@@ -1043,7 +1042,9 @@ class DB_OCEAN(GIANT):
     def __init__(self,filename,tymemax=None):
         GIANT.__init__(self,filename,xVars=xDB_OCEAN,tymemax=tymemax)
         if self.sat == 'SNPP':
-            self.ident = 'vsdto'
+            self.ident = 'vsdbo'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbo'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1068,6 +1069,8 @@ class DB_LAND(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbl'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbl'            
         if type(filename) is str:
            fname = filename
         else:
@@ -1090,6 +1093,8 @@ class DB_DEEP(GIANT):
         GIANT.__init__(self,filename,xVars=xDB_LAND,tymemax=tymemax)
         if self.sat == 'SNPP':
             self.ident = 'vsdbd'
+        elif 'NOAA' in self.sat :
+            self.ident = 'vndbd'            
         if type(filename) is str:
            fname = filename
         else:

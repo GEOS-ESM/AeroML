@@ -35,16 +35,17 @@ ALGO_ALIAS = dict( db_land = 'dpbl-l',
                    dt_ocean = 'ea-o',
                    aeronet = 'intrp' )
 
-#ALGOS = ['dt_land',
-#         'dt_ocean',
-#         'db_land',
-#         'db_ocean',
-#         ]
-
-ALGOS = ['db_land',
+ALGOS = ['dt_land',
+         'dt_ocean',
+         'db_land',
          'db_deep',
          'db_ocean',
          ]
+
+#ALGOS = ['db_land',
+#         'db_deep',
+#         'db_ocean',
+#         ]
 
 xMETA = ('nval-o','nval-l','nval-d','nval-a')
 
@@ -81,16 +82,20 @@ xDT_LAND = OrderedDict([ ("QA-l",'qa_flag'),
         ("AOD0550corr-l",'aod'),
         ("AOD0670corr-l",'aod'),
         ("AOD2250corr-l",'aod'),
-#        ("mref0412-l",'reflectance'),
-#        ("mref0443-l",'reflectance'),
         ("mref0480-l",'reflectance'),
-#        ("mref0550-l",'reflectance'),
+        ("mref0550-l",'reflectance'),
         ("mref0670-l",'reflectance'),
-#        ("mref0745-l",'reflectance'),
-#        ("mref0870-l",'reflectance'),
-#        ("mref1200-l",'reflectance'),
-#        ("mref1600-l",'reflectance'),
+        ("mref0860-l",'reflectance'),
+        ("mref1240-l",'reflectance'),
+        ("mref1600-l",'reflectance'),
         ("mref2250-l",'reflectance'),
+        ("mstdref0480-l",'std_reflectance'),
+        ("mstdref0550-l",'std_reflectance'),
+        ("mstdref0670-l",'std_reflectance'),
+        ("mstdref0860-l",'std_reflectance'),
+        ("mstdref1240-l",'std_reflectance'),
+        ("mstdref1600-l",'std_reflectance'),
+        ("mstdref2250-l",'std_reflectance'),        
         ("surfre0480-l",'sfc_reflectance'),
         ("surfre0670-l",'sfc_reflectance'),
         ("surfre2250-l",'sfc_reflectance'),
@@ -112,6 +117,13 @@ xDT_OCEAN = OrderedDict([ ("AOD0480ea-o",'aod'),
           ("mref1240-o",'reflectance'),
           ("mref1600-o",'reflectance'),
           ("mref2250-o",'reflectance'),
+          ("mstdref0480-o",'std_reflectance'),
+          ("mstdref0550-o",'std_reflectance'),
+          ("mstdref0670-o",'std_reflectance'),
+          ("mstdref0860-o",'std_reflectance'),
+          ("mstdref1240-o",'std_reflectance'),
+          ("mstdref1600-o",'std_reflectance'),
+          ("mstdref2250-o",'std_reflectance'),          
           ("acfrac-o",'cloud'),
           ("QAavg-o",'qa_flag'),
          ])
@@ -199,10 +211,10 @@ class VIIRS(Vx04_L2):
         for i,c in enumerate(self.rChannels):
             self.iGood = self.iGood & (self.reflectance[:,i]>0)
 
-        if surface == "DEEP":
+        if algo in ["DB_DEEP","DT_LAND"]:
             for i,c in enumerate(self.sChannels):
                 self.iGood = self.iGood & ~self.sfc_reflectance[:,i].mask
-        elif surface == "LAND":
+        elif algo == "DB_LAND":
             # 412 surface reflectance not used for vegetated surfaces
             self.iGood = self.iGood & self.sfc_reflectance[:,0].mask & ~self.sfc_reflectance[:,1].mask & ~self.sfc_reflectance[:,2].mask
 
@@ -581,13 +593,13 @@ if __name__ == '__main__':
         # get aeronet data
         anet = AERONET(options.anet_path,nymd,options.version,verbose=options.verbose)
 
-        mod  = HOLDER()
-        match = HOLDER()
-        if anet.nobs > 0:
-            # get modis data for each algorithm
+        for algo in ALGOS:
+            print('Working on: ', algo)
             mod  = HOLDER()
             match = HOLDER()
-            for algo in ALGOS:
+            
+            if anet.nobs > 0:
+                # get modis data for each algorithm
                 mod.__dict__[algo] = VIIRS(options.l2_path,options.inst,algo.upper(),nymd.year,julday.days,
                         coll=options.coll,
                         cloud_thresh=0.7,
@@ -600,15 +612,13 @@ if __name__ == '__main__':
                     match.__dict__[algo] = HOLDER()
                     match.__dict__[algo].nmatches = 0
                     
-        else:
-            for algo in ALGOS:
+            else:
                 match.__dict__[algo] = HOLDER()
                 match.__dict__[algo].nmatches = 0
                 mod.__dict__[algo] = HOLDER()
                 mod.__dict__[algo].nobs = 0
 
-        # Write matches to file
-        for algo in ALGOS:
+            # Write matches to file
             writeNC(ofile,algo,mod,anet,match,options)
 
         nymd += timedelta(days=1)

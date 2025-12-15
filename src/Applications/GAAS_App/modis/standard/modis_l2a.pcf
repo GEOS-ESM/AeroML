@@ -1,0 +1,26 @@
+# MODIS_L2A  processing: NNR v3 for MODIS C6
+#
+# Standard data stream 
+#
+#..................................................................................
+
+MODIS_L2A_VERBOSE         = YES
+
+MODIS_L2A_EXPID           = nnr_003
+MODIS_L2A_IDENTS          = mydl,mydo,mydd,modl,modo,modd
+MODIS_L2A_COLLECTION      = 061,061,061,061,061,061
+
+MODIS_L2A_L2_DIR          = /discover/nobackup/projects/gmao/input/dao_ops/ops/reanalysis/aerosol/data/MODIS/Level2/
+MODIS_L2A_OUT_DIR         = /discover/nobackup/projects/gmao/iesa/aerosol/data/AeroObs/nnr_003_%prod_%coll/Level%lev/Y%y4/M%m2
+
+MODIS_L2A_OVERWRITE       = YES
+MODIS_L2A_OUT_TEMPLATE    = '%s.%prod_L%leva.%algo.%y4%m2%d2_%h2%n2z.%ext'
+MODIS_L2A_RESOLUTION      = e
+MODIS_L2A_NSYN            = 8
+
+MODIS_L2A_AER_X           = /home/pcastell/opendap/m2/tavg1_2d_aer_Nx
+
+MODIS_L2A_NN_FILE         = /discover/nobackup/projects/gmao/share/dao_ops/fvInput_nc3/g5chem/x/NN/nnr_003.%ident_Tau.net
+MODIS_L2A_BLANK_ODS       = /discover/nobackup/projects/gmao/share/dao_ops/fvInput_nc3/g5chem/x/blank_syn8.ods
+
+#END MODIS_L2A  processing

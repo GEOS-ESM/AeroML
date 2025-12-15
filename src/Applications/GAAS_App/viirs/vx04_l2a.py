@@ -3,14 +3,14 @@
 
 """
   A Python script to create NNR retrievals.
-  It now uses class MXD04 to directly read MODIS Aerosol Level 2 
-  Files (MOD04/MYD04).
+  It uses class VX04 to directly read VIIRS Aerosol Level 2 
+  Files (AERDB and AERDT).
 
-  This utility reads MODIS Level2 files and creates an ODS file with
+  This utility reads VIIRS Level2 files and creates an ODS file with
   NNR retrievals, as well as a *gritas* type gridded output.
   
-  February 2011, revised Novembre 2016 for MODIS Collection 6.
-  arlindo.dasilva@nasa.gov
+  2023 Based on mxd04_l2a.py
+  patricia.castellanos@nasa.gov
 """
 
 import warnings
@@ -23,17 +23,19 @@ import subprocess
 
 from optparse        import OptionParser   # Command-line args  
 from dateutil.parser import parse as isoparse
-from mxd04_nnr       import MxD04_NNR
-from MAPL.config     import strTemplate
+from vx04_nnr       import Vx04_NNR
+from MAPL.config            import strTemplate
 
-Ident = dict( modo = ('MOD04','ocean'),
-              modl = ('MOD04','land'),
-              modd = ('MOD04','deep'),
-              mydo = ('MYD04','ocean'),
-              mydl = ('MYD04','land'),
-              mydd = ('MYD04','deep')
+Ident = dict( vsnppdto = ('SNPP','dt_ocean'),
+              vsnppdtl = ('SNPP','dt_land'),
+              vsnppdbo = ('SNPP','db_ocean'),
+              vsnppdbl = ('SNPP','db_land'),
+              vsnppdbd = ('SNPP','db_deep'),
+              vn20dtl = ('NOAA20','dt_land'),
+              vn20dto = ('NOAA20','dt_ocean'),
+              vn20dbd = ('NOAA20','db_deep')
             )
-              
+
 #---------------------------------------------------------------------
 def makethis_dir(filename):
     """Creates the relevant directory if necessary."""
@@ -48,33 +50,33 @@ def wavs_callback(option, opt, value, parser):
     setattr(parser.values, option.dest, value.split(','))
 if __name__ == "__main__":
 
-    expid = 'nnr3'
-    ident = 'modo'
+    expid = 'nnr_001'
+    ident = 'vsnppdbl'
     
 #   Defaults may be platform dependent
 #   ----------------------------------
-    if os.path.exists('/nobackup/MODIS/Level2/'): # New calculon
-        l2_path = '/nobackup/MODIS/Level2/'
-        out_dir = '/nobackup/NNR/%coll/Level%lev/%prod/Y%y4/M%m2'
-        nn_file = '/nobackup/NNR/Net/nnr_003.%ident_Tau.net'
+    if os.path.exists('/nobackup/VIIRS/Level2/'): # New calculon
+        l2_path = '/nobackup/VIIRS/'
+        out_dir = '/nobackup/NNR/VIIRS/%coll/Level%lev/%prod/Y%y4/M%m2'
+        nn_file = '/nobackup/NNR/Net/VIIRS/nnr_003.%ident_Tau.net'
         blank_ods = '/nobackup/NNR/Misc/blank.ods'
         aer_x   = '/nobackup/NNR/Misc/tavg1_2d_aer_Nx'
-        slv_x   = '/nobackup/NNR/Misc/tavg1_2d_slv_Nx'
     else: # Must be somewhere else, no good defaults
         out_dir      = './'
         l2_path = './'
         nn_file = '%ident_Tau.net'
         blank_ods = 'blank.ods'
         aer_x   = 'tavg1_2d_aer_Nx'        
-        slv_x   = 'tavg1_2d_slv_Nx'
 
-    out_tmpl = '%s.%prod_l%leva.%algo.%y4%m2%d2_%h2%n2z.%ext'
-    coll = '006'
+    out_tmpl = '%s.%prod_L%leva.%algo.%y4%m2%d2_%h2%n2z.%ext'
+    coll = '002'
     res = 'c'
     nsyn = 8
-    aodmax = 2.0
-    cloud_thresh = 0.7
+    DT_cld_coll = None
+    use_DT_filter = False
+    cloud_thresh = 0.70
     cloudFree = None
+    aodmax = 1.0
     aodSTD = 3.0
     aodLength = 0.5
     wavs = '440,470,550,660,870'
@@ -82,7 +84,7 @@ if __name__ == "__main__":
 #   Parse command line options
 #   --------------------------
     parser = OptionParser(usage="Usage: %prog [options] ident isotime",
-                          version='mxd04_l2a-1.0.0' )
+                          version='vx04_l2a-1.0.0' )
 
 
     parser.add_option("-x", "--expid", dest="expid", default=expid,
@@ -97,10 +99,6 @@ if __name__ == "__main__":
                       help="GrADS ctl for speciated AOD file (default=%s)"\
                            %aer_x )
 
-    parser.add_option("-S", "--slv_x", dest="slv_x", default=slv_x,
-                      help="GrADS ctl for column absorbers file (default=%s)"\
-                           %slv_x )    
-
     parser.add_option("--nsyn", dest="nsyn", default=nsyn,type="int",
                       help="Number of synoptic times (default=%d)"\
                            %nsyn )
@@ -110,7 +108,7 @@ if __name__ == "__main__":
                            %blank_ods )
 
     parser.add_option("-C", "--collection", dest="coll", default=coll,
-                      help="MODIS collection (default=%s)"\
+                      help="VIIRS collection (default=%s)"\
                            %coll )
 
     parser.add_option("-o", "--fname", dest="out_tmpl", default=out_tmpl,
@@ -118,7 +116,7 @@ if __name__ == "__main__":
                            %out_tmpl )
 
     parser.add_option("-L", "--l2_dir", dest="l2_path", default=l2_path,
-                      help="Top directory for MODIS Level 2 files (default=%s)"\
+                      help="Top directory for VIIRS Level 2 files (default=%s)"\
                            %l2_path )
 
     parser.add_option("-N", "--net", dest="nn_file", default=nn_file,
@@ -129,9 +127,15 @@ if __name__ == "__main__":
                       help="Resolution for gridded output (default=%s)"\
                            %res )
 
+    parser.add_option("--DT_cld_coll", dest="DT_cld_coll",default=DT_cld_coll,
+                      help="utilize DT cloud mask for DB algorithm (default=None, do not use)")
+
+    parser.add_option("--use_DT_filter",action="store_true", dest="use_DT_filter",default=False,
+                      help="Filter out DB retrievals if DT ob is present (default=False)")
+
     parser.add_option("--cloud_thresh", dest="cloud_thresh", default=cloud_thresh,type='float',
                       help="Cloud fractions threshhold for good data (default=%f)"\
-                           %cloud_thresh )
+                           %cloud_thresh )    
 
     parser.add_option("--cloudFree", dest="cloudFree", default=cloudFree,
                       help="Extra check for cloudiness when high AOD values are predicted. If not provided, no check is performed. (default=%s)"\
@@ -152,7 +156,7 @@ if __name__ == "__main__":
     parser.add_option("--wavs", dest="wavs", default=wavs,type='string',action='callback',callback=wavs_callback,
                       help="wavelength to output AOD from predicted Angstrom Exponent (default=%s)"\
                            %wavs )
-        
+
     parser.add_option("-u", "--uncompressed",
                       action="store_true", dest="uncompressed",default=False,
                       help="Do not use n4zip to compress gridded/ODS output file (default=False)")
@@ -165,19 +169,23 @@ if __name__ == "__main__":
                       action="store_true", dest="verbose",default=False,
                       help="Turn on verbosity.")
 
+    parser.add_option("--writenpz", dest="writenpz", default=False,
+                      help="Write an ungridded npz file in addition to ODS and gridded files  (default=False)")    
+
     (options, args) = parser.parse_args()
     
     if len(args) == 2:
         ident, isotime = args
-        prod, algo = Ident[ident]
+        sat, algo = Ident[ident]
+        prod = sat 
     else:
-        parser.error("must have 3 arguments: ident, date and time")
+        parser.error("must have 2 arguments: ident, isotime")
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
         
     if options.verbose:
         print("")
-        print("                          MODIS Level 2A Processing")
+        print("                          VIIRS Level 2A Processing")
         print("                          -------------------------")
         print("")
 
@@ -194,7 +202,7 @@ if __name__ == "__main__":
     out_file = strTemplate(out_tmpl,expid=options.expid,nymd=nymd,nhms=nhms)
     name, ext = os.path.splitext(out_file)
     if os.path.exists(out_file) and (options.force is not True):
-        print("mxd04_l2a: Output Gridded file <%s> exists --- cannot proceed."%out_file)
+        print("vx04_l2a: Output Gridded file <%s> exists --- cannot proceed."%out_file)
         raise IOError("Specify --force to overwrite existing output file.")    
     if os.path.exists(out_file) and options.force:
         os.remove(out_file)    
@@ -205,7 +213,7 @@ if __name__ == "__main__":
     ods_tmpl = ods_tmpl.replace('%coll',options.coll).replace('%prod',prod).replace('%algo',algo).replace('%lev','2').replace('%ext','ods')
     ods_file = strTemplate(ods_tmpl,expid=options.expid,nymd=nymd,nhms=nhms)
     if os.path.exists(ods_file) and (options.force is not True):
-        print("mxd04_l2a: Output ODS file <%s> exists --- cannot proceed."%ods_file)
+        print("vxd04_l2a: Output ODS file <%s> exists --- cannot proceed."%ods_file)
         raise IOError("Specify --force to overwrite existing output file.")
     if os.path.exists(ods_file) and options.force:
         os.remove(ods_file)
@@ -217,52 +225,48 @@ if __name__ == "__main__":
     else:
       aer_x = options.aer_x
 
-#   Column absorbers
-#   ----------------
-    if options.slv_x[-3:] == 'nc4':
-      slv_x = strTemplate(options.slv_x,expid=options.expid,nymd=nymd,nhms=nhms)
-    else:
-      slv_x = options.slv_x
         
-#   MODIS Level 2 NNR Aerosol Retrievals
+#   VIIRS Level 2 NNR Aerosol Retrievals
 #   ------------------------------------
     if options.verbose:
-        print("NNR Retrieving %s %s on "%(prod,algo.upper()),syn_time)
+        print("NNR Retrieving %s %s on "%(sat,algo.upper()),syn_time)
 
     if options.cloudFree == 'None':
         options.cloudFree = None
     elif options.cloudFree == None:
-        pass
+        pass        
     else:
         options.cloudFree = float(options.cloudFree)
 
-    modis = MxD04_NNR(options.l2_path,prod,algo.upper(),syn_time,aer_x,slv_x,
+    viirs = Vx04_NNR(options.l2_path,sat,algo.upper(),syn_time,aer_x,
                       coll=options.coll,
+                      DT_cld_coll=options.DT_cld_coll,
+                      use_DT_filter=options.use_DT_filter,
                       cloud_thresh=options.cloud_thresh,
-                      cloudFree = options.cloudFree,
-                      aodmax = options.aodmax,
+                      cloudFree=options.cloudFree,
+                      aodmax=options.aodmax,
                       aodSTD = options.aodSTD,
                       aodLength = options.aodLength,
-                      wavs = options.wavs,
-                      nsyn=options.nsyn,
+                      wavs = options.wavs,                      
+                      nsyn=options.nsyn,                      
                       verbose=options.verbose)
-    if modis.nobs < 1:
+    if viirs.nobs < 1:
         if options.verbose:
             print('WARNING: no observation for this time in file <%s>'%ods_file)
     
-    elif any(modis.iGood) == False:
+    elif any(viirs.iGood) == False:
         if options.verbose:
             print('WARNING: no GOOD observation for this time in file <%s>'%ods_file)
-        modis.nobs = 0
+        viirs.nobs = 0
 
     nn_file = options.nn_file.replace('%ident',ident)
-    modis.apply(nn_file)
+    viirs.apply(nn_file)
 
 #   Write ODS
 #   ---------
     makethis_dir(ods_file)
-    if modis.nobs>0:
-        modis.writeODS(ods_file,revised=True,nsyn=options.nsyn)
+    if viirs.nobs>0:
+        viirs.writeODS(ods_file,revised=True,nsyn=options.nsyn)
     else:
         if os.system('ods_blank.x %s %s %s %s'%(options.blank_ods,nymd,nhms,ods_file)):
             warnings.warn('cannot create empty output file <%s>'%ods_file)
@@ -273,22 +277,23 @@ if __name__ == "__main__":
 #   Write gridded output file (revised channels only)
 #   -------------------------------------------------
     makethis_dir(out_file)
-    if modis.nobs>0:
+    if viirs.nobs>0:
       if str.isdigit(options.res):
-        modis.writeg(filename=out_file,refine=int(options.res),channels=modis.channels_)
+        viirs.writeg(filename=out_file,refine=int(options.res),channels=viirs.channels_)
       else:
-        modis.writeg(filename=out_file,res=options.res,channels=modis.channels_)
+        viirs.writeg(filename=out_file,res=options.res,channels=viirs.channels_)
 
 #   Write ungridded data
 #   --------------------
-#    name, ext = os.path.splitext(out_file)
-#    npz_file = name.replace('Level3','Level2') + '.npz'
-#    makethis_dir(npz_file)
-#    modis.write(npz_file)
+    if options.writenpz:
+        name, ext = os.path.splitext(out_file)
+        npz_file = name.replace('Level3','Level2') + '.npz'
+        makethis_dir(npz_file)
+        viirs.write(npz_file)
     
 #   Compress nc output unless the user disabled it
 #   ----------------------------------------------
-    if modis.nobs>0:
+    if viirs.nobs>0:
         if not options.uncompressed:
             if subprocess.call("n4zip " + out_file,shell=True):
                 warnings.warn('cannot compress output file <%s>'%out_file)

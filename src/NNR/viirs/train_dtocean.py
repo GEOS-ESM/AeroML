@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-    Train the Dark Target Land Obs
+    Train the Dark Target Ocean Obs
 """
 
 import os, sys
-from   pyabc.abc_viirs         import ABC_DB_Land, _trainMODIS, _testMODIS, flatten_list
+from   pyabc.abc_viirs            import ABC_DT_Ocean, _trainMODIS, _testMODIS
 from   pyabc.abc_c6_aux           import SummarizeCombinations
+from   glob                       import glob
 import argparse
-from   glob                    import glob
+import numpy as np
 
 if __name__ == "__main__":
 
@@ -32,10 +33,8 @@ if __name__ == "__main__":
 
     aerFile = []
     for aFile in inputs['aerFile']:
-        aerFile += sorted(glob(aFile))    
-    
+        aerFile += sorted(glob(aFile))
 
-  
     # tymemax sets a truncation date when reading in giant file
     # string with format YYYYMMDD
     # None reads the entire datarecord
@@ -47,26 +46,29 @@ if __name__ == "__main__":
 
     # number of hidden layers
     nHLayers     = inputs['nHLayers']
-
+    
     # number of nodes in hidden layers
-    # None uses the default of 200 coded in nn.py  
+    # None uses the default of 200 coded in nn.py        
     nHidden      = inputs['nHidden']
 
     # do training on combinations of the inputs
     combinations = inputs['combinations']
 
-    # NN target variable names
+    # NN target variable name
     Target       = inputs['Target']
 
     # surface albedo variable name
-    # options are None, MCD43C1, MOD43BClimAlbedo  
+    # options are None, CoxMunkLUT, or CxAlbedo
+    # if CoxMunkLUT one needs to provide the coxmunk_lut option to ABC_Ocean, 
+    # otherwise default is used (default = '/nobackup/NNR/Misc/coxmunk_lut.npz')
+    # if CxAlbedo is used, need to provide a *npz file with CxAlbedo precalculated
     Albedo       = inputs['Albedo']
 
     # number of K-folds or training
     # if None does not do K-folding, trains on entire dataset
     K            = inputs['K']
 
-    # Flags to Train of Test the DEEP BLUE DATASET
+    # Flags to Train or Test the DARK TARGET DATASET
     doTrain      = inputs['doTrain']
     doTest       = inputs['doTest']
 
@@ -75,20 +77,21 @@ if __name__ == "__main__":
 
     # Inputs that are always included
     # this can be None
-    Input_const  = inputs['Input_const']
+    Input_const = inputs['Input_const']
+
 
     # Inputs that can be varied across combinations
     # if combinations flag is False, all of these inputs are used
     # if combinations flag is True, all possible combinations of these inputs
     # are tried
-    Input_nnr    = inputs['Input_nnr']
+    Input_nnr = inputs['Input_nnr']
 
     # Inputs I want to the the log-transform of
     lInput_nnr = inputs['lInput_nnr']
 
     # Additional variables that the inputs are filtered by
-    # standard filters are hardcoded in the abc_c6.py scripts
-    aFilter      = inputs['aFilter']
+    # standard filters are hardcoded in the abc_c6.py scripts 
+    aFilter  = inputs['aFilter']
 
     # fraction that defines whether a pixel is domniated by a species
     f_balance = inputs['f_balance']
@@ -102,11 +105,11 @@ if __name__ == "__main__":
     # it through balancing procedure
     minN = inputs['minN']
 
-    # ignore a species when doing species balancing step 
+    # ignore a species when doing species balancing step
     # is spc_aod_balance
     # ignore SS dominated over land because these obs are so few
     fignore = inputs['fignore']
-    
+
     # number of size bins to use in aod balancing
     # default is 6
     nbins = inputs['nbins']
@@ -114,14 +117,6 @@ if __name__ == "__main__":
     # cloud threshhold for filtering
     # default if not provided is 0.7
     cloud_thresh = inputs['cloud_thresh']
-
-    # algflag ---  DB Land algorithm flag number - this should be a list. Allows for selecting multiple algorithms.
-    #            None - don't filter, use all pixels
-    #            0 - hybrid (heterogenous surface)
-    #            1 - vegetated surface
-    #            2 - bright surface
-    #            3 - mixed
-    algflag = inputs['algflag']
 
     # take natural log of target aod
     # detault is true
@@ -145,57 +140,58 @@ if __name__ == "__main__":
         sat = giantFile[0].split('_')[-4]
 
     if sat == 'SNPP':
-        retrieval    = 'VS_DB_LAND'
+        retrieval    = 'VS_DT_OCEAN'
     if sat in ['NOAA20','NOAA-20']:
-        retrieval    = 'VN20_DB_LAND'
+        retrieval    = 'VN20_DT_OCEAN'
 
     expid        = '{}_{}'.format(retrieval,expid)
 
     if Input_const is not None:
-        InputMaster = list((Input_const,) + tuple(Input_nnr))      
+        InputMaster = list((Input_const,) + tuple(Input_nnr))
     else:
         InputMaster = Input_nnr
 
     # Train/Test on full dataset
     # -------------------------------------
     if doTrain or doTest:
-        deep = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
-                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                algflag=algflag,logoffset=logoffset,outliers=outliers,laod=laod,scale=scale)  
+        ocean = ABC_DT_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
+                verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=outliers,
+                logoffset=logoffset,laod=laod,scale=scale)
+                           
+    # Initialize class for training/testing
+    # ---------------------------------------------
+    ocean.setupNN(retrieval, expid,
+                      nHidden      = nHidden,
+                      nHLayers     = nHLayers,
+                      combinations = combinations,
+                      Input_const  = Input_const,
+                      Input_nnr    = Input_nnr,                                         
+                      Target       = Target,                      
+                      K            = K,
+                      lInput_nnr   = lInput_nnr,
+                      f_balance    = f_balance,
+                      q_balance    = q_balance,
+                      q_balance_enhance = q_balance_enhance,
+                      minN         = minN,
+                      fignore      = fignore,
+                      nbins        = nbins)
 
-        # Initialize class for training/testing
-        # ---------------------------------------------
-        deep.setupNN(retrieval, expid,
-                        nHidden      = nHidden,
-                        nHLayers     = nHLayers,
-                        combinations = combinations,
-                        Input_const  = Input_const,
-                        Input_nnr    = Input_nnr,                                         
-                        Target       = Target,                      
-                        K            = K,
-                        lInput_nnr   = lInput_nnr,
-                        f_balance    = f_balance,
-                        q_balance    = q_balance,
-                        q_balance_enhance = q_balance_enhance,
-                        minN         = minN,
-                        fignore      = fignore,
-                        nbins        = nbins)
 
     # Do Training and Testing
     # ------------------------
     if doTrain:
-        _trainMODIS(deep)
+        _trainMODIS(ocean)
 
     if doTest:
-        _testMODIS(deep)
+        _testMODIS(ocean)
 
         # if outlier were excluded, do an extra test with outliers included
         if (outliers > 0) and (K is None):
-            deep_out = ABC_DB_Land(giantFile,aerFile=aerFile,Albedo=Albedo,
-                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,
-                    algflag=algflag,outliers=-1,logoffset=logoffset,laod=laod,scale=scale)
+            ocean_out = ABC_DT_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
+                    verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=-1,
+                    logoffset=logoffset,laod=laod,scale=scale)        
 
-            deep_out.setupNN(retrieval, expid,
+            ocean_out.setupNN(retrieval, expid,
                       nHidden      = nHidden,
                       nHLayers     = nHLayers,
                       combinations = combinations,
@@ -208,15 +204,16 @@ if __name__ == "__main__":
                       q_balance    = False,
                       minN         = minN,
                       fignore      = fignore,
-                      nbins        = nbins)
+                      nbins        = nbins)           
 
-            deep_out.iTest[deep.outValid][deep.iTrain] = False
-            deep_out.expid = 'outlier.' + deep_out.expid
+            ocean_out.iTest[ocean.outValid][ocean.iTrain] = False
+            ocean_out.expid = 'outlier.' + ocean_out.expid
 
-            _testMODIS(deep_out)
+            _testMODIS(ocean_out)
 
+
+        
         if combinations:
-            SummarizeCombinations(deep,InputMaster,yrange=None,sortname='rmse')
+            SummarizeCombinations(ocean,InputMaster,yrange=None,sortname='rmse')
       
-
 

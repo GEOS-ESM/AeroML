@@ -1,13 +1,10 @@
 # inputs
 
 dict(
-# list of giant files
-    giantFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*nc',
-                  '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*nc'),
-
-# MERRRA-2 sampled input files
-    aerFile = ('/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_201[2-9]*MERRA2*npz',
-                '/nobackup/NNR/Training/002/giant_C002_10km_SNPP_v3.0_202[0-3]*MERRA2*npz'),
+    giantFile = ('/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*nc',
+                  '/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*nc'),
+    aerFile = ('/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*MERRA2*npz',
+                '/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*MERRA2*npz'),
 
 # tymemax sets a truncation date when reading in giant file
 # string with format YYYYMMDD
@@ -37,10 +34,10 @@ dict(
     doTest       = True,
 
 # experiment name
-    expid        = 'candidate_noturbid_nowato3_linputs_combi_downselect_2outputsAEfitm_002',
+    expid        = 'n20_v005',
 
 # NN target variable name
-    Target = ['aTau550','aAEfitm'],
+    Target = ['aTau550'],
 
 # surface albedo variable name
 # options are None, ['CoxMunkLUT'], or ['CxAlbedo']
@@ -59,18 +56,18 @@ dict(
 # are tried
 
     Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-                   'lfdu','lfcc','lfss',
-                   'lmRef412','lmRef488','lmRef550','lmRef670', 'lmRef865','lmRef1240','lmRef2250'],
+                   'fdu','fcc','fss',
+                   'mRef480','mRef550','mRef670', 'mRef860','mRef1240','mRef1600','mRef2250'],
 
 # Inputs I want to the the log-transform of
-    lInput_nnr = ['mRef412','mRef488','mRef550','mRef670', 'mRef865','mRef1240','mRef1640','mRef2250',
+    lInput_nnr = ['SolarZenith','ScatteringAngle', 'GlintAngle',
+                  'mTau550',
+                  'mRef480','mRef550','mRef670', 'mRef860','mRef1240','mRef1600','mRef2250',
                   'fdu','fcc','fss'],
 
 # Additional variables that the inputs are filtered by
 # standard filters are hardcoded in the abc_c6.py scripts
-    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'] +\
-                   ['colO3'] +\
-                   ['water'],
+    aFilter      = ['aTau440','aTau470','aTau500','aTau550','aTau660','aTau870'], 
 
 # fraction that defines whether a pixel is dominated by a species
 # if not set as an input default is 0.5
@@ -78,25 +75,22 @@ dict(
     f_balance = 0.5,
 
 # flag to do both species and target AOD balancing
-# q_balance default is True
-# q_balance_enhance default is False - this option balances by enhancing the numver of data points in size bins rather than removing data
+# default is True
 # minN is the minimum number of points in a size bin
 # if this is too small, very few obs will make it through
 # default is 500
-# fignore is the list species to not balance
-# nbins is the number of size bins to use, default is 6
-    q_balance = True,
+    q_balance = False,
     q_balance_enhance = False,
     minN = 500,
     fignore = [],
     nbins = 6,
 
-# cloud threshhold for filtering
-# default if not provided is 0.7
+# cloud fraction threshhold for filtering
+# detault if not provided is 0.7
     cloud_thresh = 0.7,
 
 # take natural log of target aod
-# detault is true
+# default is true
     laod = True,
 
 # offset to protect against negative numbers.
@@ -104,8 +98,6 @@ dict(
     logoffset = 0.01,
 
 # standard scale the targets
-# default is False
-    scale = False,
-
+    scale = False,    
 )
 

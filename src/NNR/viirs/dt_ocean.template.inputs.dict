@@ -76,10 +76,14 @@ dict(
     f_balance = 0.5,
 
 # flag to do both species and target AOD balancing
-# default is True
+# q_balance default is True
+# q_balance_enhance default is False - this option balances by enhancing the numver of data points in size bins rather than removing data
 # minN is the minimum number of points in a size bin
 # if this is too small, very few obs will make it through
 # default is 500
+# fignore is a list of species to ignore when doing species balancing
+# here we ignore SS dominated because it is overwhelmingly the least observed
+# nbins is the number of size bins to use, default is 6
     q_balance = False,
     q_balance_enhance = True,
     minN = 500,

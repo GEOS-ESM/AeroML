@@ -16,6 +16,7 @@ MODIS_L2A_OUT_DIR         = ${FVWORK}
 MODIS_L2A_OVERWRITE       = YES
 MODIS_L2A_OUT_TEMPLATE    = '%s.%prod_L%leva.%algo.%y4%m2%d2_%h2%n2z.%ext'
 MODIS_L2A_RESOLUTION      = e
+MODIS_L2A_NSYN            = 8
 
 MODIS_L2A_AER_X           = %s.gaas_bkg.sfc.%y4%m2%d2_%h2z.nc4
 

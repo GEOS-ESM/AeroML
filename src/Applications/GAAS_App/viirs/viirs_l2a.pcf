@@ -17,11 +17,12 @@ VIIRS_L2A_OUT_DIR         = ${FVWORK}
 VIIRS_L2A_OVERWRITE       = YES
 VIIRS_L2A_OUT_TEMPLATE    = '%s.%prod_L%leva.%algo.%y4%m2%d2_%h2%n2z.%ext'
 VIIRS_L2A_RESOLUTION      = e
+VIIRS_L2A_NSYN            = 8
 
 VIIRS_L2A_AER_X           = %s.gaas_bkg.sfc.%y4%m2%d2_%h2z.nc4 
 
 
-VIIRS_L2A_NN_FILE         = ExtData/g5chem/x/NN/nnr_001.%ident_TauAE.net
+VIIRS_L2A_NN_FILE         = ExtData/g5chem/x/NN/nnr_001.%ident.net
 VIIRS_L2A_BLANK_ODS       = ExtData/g5chem/x/blank.ods
 
 VIIRS_L2A_DT_CLD_COLL     = 002

@@ -13,5 +13,5 @@
 file (GLOB abc_files pyabc/*.py)
 install (
     FILES ${abc_files}
-    DESTINATION lib/Python/pyobs
+    DESTINATION lib/Python/pyabc
     )

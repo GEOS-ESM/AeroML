@@ -7,6 +7,8 @@
 
 ### Changed
 
+- Minor changes to get VIIRS to work in ADAS v5.43x
+
 ## [v1.4.0] 2025-12-03
 
 ### Added

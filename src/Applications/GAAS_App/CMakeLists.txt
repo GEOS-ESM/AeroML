@@ -9,8 +9,8 @@ install(
    DESTINATION lib/Python
    )
 
-file(GLOB perl_files *.pl)
-file(GLOB pcf_files *.pcf)
+file(GLOB perl_files CONFIGURE_DEPENDS *.pl)
+file(GLOB pcf_files CONFIGURE_DEPENDS *.pcf)
 
 install (
    FILES ${pcf_files}
@@ -18,7 +18,7 @@ install (
    )
 
 install (
-   FILES ${perl_files}
+   PROGRAMS ${perl_files}
    DESTINATION bin
    )
 

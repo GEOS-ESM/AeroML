@@ -68,7 +68,7 @@ my ($workdir, $modis, $viirs, $avhrr, %flags, $verbose);
             move($file, $subdir);
         }
     }
-            
+
     if ($viirs) {
         foreach $file (<$workdir/VN20AERD?_L2_VIIRS_NOAA20.*.*.nc>) {
             $base = basename $file;

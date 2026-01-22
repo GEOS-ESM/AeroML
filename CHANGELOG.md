@@ -7,10 +7,13 @@
 
 ### Changed
 
+ 
 ## [v1.5.0] 2026-01-22
 ### Changed
 
 - Minor changes to get VIIRS to work in ADAS v5.43x
+- Move setup_gaas_obs.pl from GMAO_Etc here for consistency
+- chmod +x pl script
 
 ## [v1.4.0] 2025-12-03
 

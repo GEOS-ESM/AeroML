@@ -5,7 +5,8 @@ based on PATMOS-X data.
 """
 
 import warnings
-from pyobs         import avhrr, sknet
+from pyobs         import avhrr
+from pyabc         import sknet
 from numpy         import  c_ as cat
 from numpy         import  copy, ones, sin, cos, exp, arccos, pi, any, log
 

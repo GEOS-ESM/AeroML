@@ -13,5 +13,11 @@
 file (GLOB abc_files pyabc/*.py)
 install (
     FILES ${abc_files}
+    DESTINATION lib/Python/pyabc
+    )
+# this is a hack so sknet and others
+# are seen in both abc and pyobs
+install (
+    FILES ${abc_files}
     DESTINATION lib/Python/pyobs
     )

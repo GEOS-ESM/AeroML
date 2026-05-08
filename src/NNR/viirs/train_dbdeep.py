@@ -8,12 +8,15 @@ from   pyabc.abc_viirs         import ABC_DB_Deep, _trainMODIS, _testMODIS, flat
 from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                    import glob
 import argparse
+import pickle 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("inputs",
                         help="python file with dictionary of inputs")
+    parser.add_argument("--oldnet",action='store_true',
+                        help="continue training from an existing netfile")
 
     args = parser.parse_args()
 
@@ -132,6 +135,10 @@ if __name__ == "__main__":
     # standard scale the targets
     scale = inputs['scale']
 
+    # training iterations
+    # default if not provided is 2250
+    maxfun = inputs['maxfun']
+
     # --------------
     # End of Inputs
     # -------------
@@ -183,7 +190,25 @@ if __name__ == "__main__":
     # Do Training and Testing
     # ------------------------
     if doTrain:
-        _trainMODIS(deep)
+        lossFile = f"{deep.outdir}/training_loss.pkl"
+        kwargs = {'maxfun':maxfun}
+        if args.oldnet:
+            newnet= False
+            with open(lossFile, "rb") as f:
+                loss = pickle.load(f)
+                deep.ermse = loss['ermse']
+                deep.emae  = loss['emae']
+                deep.eme   = loss['eme']
+        else:
+            newnet = True
+        _trainMODIS(deep,kwargs=kwargs,newnet=newnet)
+
+        with open(lossFile, "wb") as f:
+            loss = {"ermse": deep.ermse,
+                    "emae": deep.emae,
+                    "eme": deep.eme}
+            pickle.dump(loss, f)
+
 
     if doTest:
         _testMODIS(deep)

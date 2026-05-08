@@ -9,12 +9,15 @@ from   pyabc.abc_c6_aux           import SummarizeCombinations
 from   glob                       import glob
 import argparse
 import numpy as np
+import pickle
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("inputs",
                         help="python file with dictionary of inputs")
+    parser.add_argument("--oldnet",action='store_true',
+                        help="continue training from an existing netfile")    
 
     args = parser.parse_args()
 
@@ -129,6 +132,17 @@ if __name__ == "__main__":
     # standard scale the targets
     scale = inputs['scale']
 
+    # oversample values less than epsilon value
+    near_zero_weight_epsilon = inputs['near_zero_weight_epsilon']
+
+    # oversample inputs values greater than percentile
+    # default is None, don't do weighting
+    exp_weight_percentile = inputs['exp_weight_percentile']
+
+    # training iterations
+    # default if not provided is 2250
+    maxfun = inputs['maxfun']
+
     # --------------
     # End of Inputs
     # -------------
@@ -156,7 +170,7 @@ if __name__ == "__main__":
     if doTrain or doTest:
         ocean = ABC_DT_Ocean(giantFile,aerFile=aerFile,Albedo=Albedo,
                 verbose=1,aFilter=aFilter,tymemax=tymemax,cloud_thresh=cloud_thresh,outliers=outliers,
-                logoffset=logoffset,laod=laod,scale=scale)
+                logoffset=logoffset,laod=laod,scale=scale,near_zero_weight_epsilon=near_zero_weight_epsilon)
                            
     # Initialize class for training/testing
     # ---------------------------------------------
@@ -180,7 +194,30 @@ if __name__ == "__main__":
     # Do Training and Testing
     # ------------------------
     if doTrain:
-        _trainMODIS(ocean)
+        lossFile = f"{ocean.outdir}/training_loss.pkl"
+        kwargs = {'maxfun':maxfun,
+                  'messages': 9,
+                 }
+#                  'bounds': [None,None]}
+        if args.oldnet:
+            newnet= False
+            with open(lossFile, "rb") as f:
+                loss = pickle.load(f)
+                ocean.ermse = loss['ermse']
+                ocean.emae  = loss['emae']
+                ocean.eme   = loss['eme']
+                ocean.esqerr = loss['esqerr']
+        else:
+            newnet = True
+        _trainMODIS(ocean,kwargs=kwargs,newnet=newnet)
+
+        with open(lossFile, "wb") as f:
+            loss = {"ermse": ocean.ermse,
+                    "emae": ocean.emae,
+                    "eme": ocean.eme,
+                    "esqerr": ocean.esqerr}
+            pickle.dump(loss, f)
+
 
     if doTest:
         _testMODIS(ocean)

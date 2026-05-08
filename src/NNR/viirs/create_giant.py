@@ -553,11 +553,11 @@ if __name__ == '__main__':
                       help="overwrite existing file (default=%s)"\
                            %overwrite ) 
 
-    parser.add_option("-X", "--Dx", dest="Dx", default=Dx,
+    parser.add_option("-X", "--Dx", dest="Dx", default=Dx,type="float",
                       help="Radius around AERONET site in km (default=%s)"\
                            %Dx ) 
 
-    parser.add_option("-T", "--Dt", dest="Dt", default=Dt,
+    parser.add_option("-T", "--Dt", dest="Dt", default=Dt,type="int",
                       help="time interval for AERONET temporal averaging in minutes (default=%s)"\
                            %Dt )                             
 

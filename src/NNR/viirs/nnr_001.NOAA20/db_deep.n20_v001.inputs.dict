@@ -112,5 +112,19 @@ dict(
 # standard scale the targets
 # default is False
     scale = False,
+
+# oversample target values less than epsilon value
+# default is None, don't do weighting
+    near_zero_weight_epsilon = None,
+
+# oversample inputs values greater than percentile
+# default is None, don't do weighting
+    exp_weight_percentile = None,
+
+# training iterations
+# maxfun is the number of training batches
+# one batch is 2250 interations
+# default if not provided is 1
+    maxfun = 1,    
 )
 

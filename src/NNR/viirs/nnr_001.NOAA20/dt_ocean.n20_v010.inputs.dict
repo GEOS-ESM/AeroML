@@ -112,6 +112,8 @@ dict(
     exp_weight_percentile = None,
 
 # training iterations
+# maxfun is the number of training batches
+# one batch is 2250 interations
 # default if not provided is 1
     maxfun = 20,
 )

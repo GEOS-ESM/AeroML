@@ -5,12 +5,59 @@
 """
 
 import os, sys
-from   pyabc.abc_viirs            import ABC_DT_Ocean, _trainMODIS, _testMODIS
-from   pyabc.abc_c6_aux           import SummarizeCombinations
+from   pyabc.abc_viirs            import ABC_DT_Ocean
 from   glob                       import glob
 import argparse
 import numpy as np
-import pickle
+import matplotlib.pyplot    as      plt
+
+
+#------
+def _plot2dKDE(self,x_values,y_values,x_bins=None,y_bins=None,
+             x_label='AERONET', y_label='STANDARD',figfile=None,title=None):
+    """
+    Plot Target vs Model using a 2D Kernel Density Estimate.
+    """
+
+    if x_bins is None: x_bins = np.arange(-5., 1., 0.1 )
+    if y_bins is None: y_bins = x_bins
+
+    Nx = len(x_bins)
+    Ny = len(y_bins)
+
+    print("Evaluating 2D kernel on grid with (Nx,Ny)=(%d,%d) ..."%(Nx,Ny))
+    kernel = stats.kde.gaussian_kde(self._cat2(x_values,y_values))
+    X, Y = np.meshgrid(x_bins,y_bins)   # each has shape (Ny,Nx)
+    Z = kernel(_cat2(X,Y))           # shape is (Ny*Nx)
+    Z = np.reshape(Z,X.shape)
+
+    if self.laod:
+        formatter = aodFormat()
+    else:
+        formatter = None
+
+    fig = plt.figure()
+    ax = fig.add_axes([0.1,0.1,0.75,0.75])
+    if formatter != None:
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
+    ax.imshow(Z, cmap=plt.cm.gist_earth_r, origin='lower',
+           extent=(x_bins[0],x_bins[-1],y_bins[0],y_bins[-1]) )
+    ax.plot([x_bins[0],x_bins[-1]],[y_bins[0],y_bins[-1]],'k')
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.grid()
+    if title is not None:
+        ax.set_title(title)
+
+    if figfile is not None:
+        plt.savefig(figfile)
+        plt.close(fig)
+    else:
+        plt.show()
+
+
+
 
 if __name__ == "__main__":
 
@@ -175,16 +222,6 @@ if __name__ == "__main__":
                 logoffset=logoffset,laod=laod,scale=scale,near_zero_weight_epsilon=near_zero_weight_epsilon)
 
 
-    invars = ocean.comblist[0]
-    netFile = ocean.outdir+"/"+".".join(invars)+'_Tau.net'
-
-    sys.exit()
-    # load the net
-    ocean.net = ocean.loadnet(netFile)
-    ocean.Input = ocean.comblist[c]
-
-    sys.exit()
-
 
     # Initialize class for training/testing
     # ---------------------------------------------
@@ -203,6 +240,29 @@ if __name__ == "__main__":
                       minN         = minN,
                       fignore      = fignore,
                       nbins        = nbins)
+
+
+    invars = ocean.comblist[0]
+    netFile = ocean.outdir+"/"+".".join(invars)+'_Tau.net'
+
+    
+    # load the net
+    ocean.net = ocean.loadnet(netFile)
+    ocean.Input = ocean.comblist[0]
+
+    # set I
+    I = ocean.iTest
+
+    # Get the target, original data, and NN predicted data
+    targets  = ocean.getTargets(I,noscale=True)
+    targets.shape = targets.shape + (1,)
+    results = ocean.eval(I,noscale=True)
+    name = 'm'+ocean.Target[0][1:]
+    original = np.log(ocean.__dict__[name][I] + 0.01)
+
+     
+
+    sys.exit()
 
 
     # Do Training and Testing

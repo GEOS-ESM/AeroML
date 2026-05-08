@@ -5,7 +5,7 @@
 
 """
 
-import os
+import os, sys
 from . import sknet as nn
 
 from   matplotlib.pyplot import  cm, imshow, plot, figure
@@ -16,8 +16,9 @@ from   numpy             import  reshape, arange, ones, zeros, interp
 from   numpy             import  meshgrid, concatenate, mgrid
 import numpy             as      np
 from   matplotlib        import  ticker
-from   scipy             import  stats
+from   scipy             import  stats, optimize
 from   sklearn.model_selection import KFold
+from   .error_funcs      import rmse, mae, me
 #..............................................................
 class aodFormat(ticker.Formatter):
     def __call__(self,x,pos=None):
@@ -27,8 +28,129 @@ class aodFormat(ticker.Formatter):
 
 class NN(object):
 
-    def train (self,Input=None,Target=None,nHidden=200,maxfun=2550,biases=True,
-               topology=None,bounds=[-100,100], **kwargs):
+    def train_tnc_aeroml(self, input, target, nproc = 1, **kwargs):
+        """
+        :Parameters:
+            input : 2-D array
+                Array of input patterns
+            target : 2-D array
+                Array of network targets
+            nproc : int or 'ncpu', optional
+                Number of processes spawned for training. If nproc='ncpu'
+                nproc will be set to number of avilable processors
+            maxfun : int
+                Maximum number of function evaluation. If None, maxfun is
+                set to max(100, 10*len(weights)). Defaults to None.
+            bounds : list, optional
+                *(min, max)* pairs for each connection weight, defining
+                the bounds on that weight. Use None for one of *min* or
+                *max* when there is no bound in that direction.
+                By default all bounds ar set to (-100, 100)
+            messages : int, optional
+                If 0, then no output (default). If positive number then
+                convergence messages are dispalyed.
+
+        :Returns:
+            rc: fmin_tnc return code
+            Return codes are defined as follows:
+
+            -1 : Infeasible (lower bound > upper bound)
+            0 : Local minimum reached (|pg| ~=0) 
+            1 : Converged (|fn - fn-1| ~=0)
+            2 : Converged (|xn - xn-1| ~=0)
+            3 : Max. number of function evaluations reached
+            4 : Linear search failed
+            5 : All lower bounds are equal to the upper bounds
+            6 : Unable to progress
+            7 : User requested end of minimization
+
+        .. note::
+            On Windows using *ncpu > 1* might be memory hungry, because
+            each process have to load its own instance of network and
+            training data. This is not the case on Linux platforms.
+
+        .. seealso::
+            `scipy.optimize.fmin_tnc` optimizer is used in this method. Look
+            at its documentation for possible other useful parameters.
+        """
+        from ffnet.fortran import _ffnet as netprop
+
+        input, target = self.net._setnorm(input, target)
+        if 'messages' not in kwargs: kwargs['messages'] = 0
+        if 'bounds' not in kwargs: kwargs['bounds'] = ((-100., 100.),)*len(self.net.conec)
+
+        # multiprocessing version if nproc > 1
+        if (isinstance(nproc, int) and nproc > 1) or nproc in (None, 'ncpu'):
+            if nproc == 'ncpu': nproc = None
+            rc = self._train_tnc_mp_aeroml(input, target, nproc = nproc, **kwargs)
+            return rc # return code for fmin_tnc
+
+        # single process version
+        func = netprop.func2  # returns both function and gradient
+        extra_args = (self.net.conec, self.net.bconecno, self.net.units, \
+                           self.net.inno, self.net.outno, input, target)
+        res = optimize.fmin_tnc(func, self.net.weights, \
+                                         args=extra_args, **kwargs)
+        self.net.weights = np.array( res[0] )
+        self.net.trained = 'tnc'
+
+        return res[2]   # return code for fmin_tnc
+
+    def _train_tnc_mp_aeroml(self, input, target, nproc = None, **kwargs):
+        """
+        Parallel training with TNC algorithm
+
+        Standard multiprocessing package is used here.
+        """
+        #register training data at mpprop module level
+        # this have to be done *BEFORE* creating pool
+        from ffnet import _mpprop as mpprop
+        try: key = max(mpprop.nets) + 1
+        except ValueError: key = 0  # uniqe identifier for this training
+        mpprop.nets[key] = self.net
+        mpprop.inputs[key] = input
+        mpprop.targets[key] = target
+
+        # create processing pool
+        from multiprocessing import Pool, cpu_count
+        if nproc is None: nproc = cpu_count()
+        if sys.platform.startswith('win'):
+            # we have to initialize processes in pool on Windows, because
+            # each process reimports mpprop thus the registering
+            # made above is not enough
+            # WARNING: this might be slow and memory hungry
+            # (no shared memory, all is serialized and copied)
+            initargs = [key, self, input, target]
+            pool = Pool(nproc, initializer = mpprop.initializer, initargs=initargs)
+        else:
+            pool = Pool(nproc)
+        
+        # save references for later cleaning
+        self.net._mppool = pool
+        self.net._mpprop = mpprop
+        self.net._mpkey = key
+        
+        # generate splitters for training data
+        splitters = mpprop.splitdata(len(input), nproc)
+
+        # train
+        func = mpprop.mpfunc2
+
+        #if 'messages' not in kwargs: kwargs['messages'] = 0
+        #if 'bounds' not in kwargs: kwargs['bounds'] = ((-100., 100.),)*len(self.conec)
+        res = optimize.fmin_tnc(func, self.net.weights, \
+                                args = (pool, splitters, key), **kwargs)
+        self.net.weights = res[0]
+
+        # clean mpprop and pool
+        self.net._clean_mp()
+
+        return res[2]   # return code for fmin_tnc
+
+
+
+    def train (self,Input=None,Target=None,nHidden=200,maxfun=1,biases=True,
+               topology=None,bounds=[-100,100],newnet=True,netFile=None, **kwargs):
         """
         Train the Neural Net, using a maximum of *maxfun* iterations.
         On input,
@@ -41,6 +163,8 @@ class NN(object):
            nHidden  ---  number of hidden nodes
            maxfun   ---  max number of iterations
            biases   ---  whether to include bias nodes
+           newnet   ---  start a new NN or use an existing one
+           netFile  ---  in the case of newnet, netFile to be read in
          topology   ---  Network topology; default is (nInput,nHidden,nTarget)
          
          Returns:
@@ -59,7 +183,15 @@ class NN(object):
         if topology==None:
             topology = (len(self.Input), nHidden,len(self.Target))
         #self.net = nn.ffnet(nn.mlgraph(topology,biases=biases))
-        self.net = nn.SKNET(nn.mlgraph(topology,biases=biases))
+        if newnet:
+            self.net = nn.SKNET(nn.mlgraph(topology,biases=biases))
+            ermse, emae, eme, esqerr = [],[],[],[]
+            e0 = 0
+        else:
+            self.net = nn.loadnet(netFile)
+            self.net.trained = 'tnc'
+            ermse, emae, eme, esqerr = self.ermse, self.emae, self.eme, self.esqerr
+            e0 = len(ermse)
 
         # Add these attributes to net so that later on
         # we now how to apply it to regular MODIS data
@@ -87,23 +219,115 @@ class NN(object):
             iTrain = self.iTrain
         except AttributeError:
             iTrain = self.iValid # good QC marks
-            
+
+
+        # Increase the weighting of near zero AOD550 values in training
+        # -------------------------------------------------------
+        if self.near_zero_weight_epsilon:
+            targets = self.getTargets(iTrain)
+            print(f"Oversampling values less than {self.near_zero_weight_epsilon}")
+            print("array shape",targets.shape,"number of targets",len(Target))
+            for i,tname in enumerate(Target):
+                if 'Tau550' in tname:
+                    if len(Target) == 1:
+                        targ = targets
+                    else:
+                        targ = targets[:,i]
+                    # near zero weight ~ 5, far from zero weight ~1
+                    w = 1.0 + 4.0*np.exp(-(targ/self.near_zero_weight_epsilon)**2)
+                    # normalize to probabilities
+                    p = w/w.sum()
+                    N = len(targ)
+                    M = 3*N  #oversample high weights by 3
+                    idx = np.random.choice(N,size=M,replace=True,p=p)
+                    if iTrain.dtype == bool:
+                        iTrain = np.arange(len(iTrain))[iTrain][idx]
+                    else:
+                        iTrain = iTrain[idx]
+
+        if self.exp_weight_percentile:
+            inputs = self.getInputs(iTrain)
+            print(f"Oversampling top {self.exp_weight_percentile} percentile cases")
+            for i,iname in enumerage(Input):
+                if 'ref550' in iname:
+                    inp = inputs[:,i]
+
+                    # exponential/solf-threshold weighting
+                    y_ref = np.percentile(inp,100-self.exp_weight_percentile)
+                    alpha = 4.0 # strength of scaling
+                    w = 1.0 + alpha*np.exp(inp/y_ref)
+                    p = w/w.sum()
+                    N = len(inp)
+                    M = 3*N #oversample high weights by 3
+                    idx = np.random.choice(N,size=M,replace=True,p=p)
+                    if iTrain.dtype == bool:
+                        iTrain = np.arange(len(iTrain))[iTrain][idx]
+                    else:
+                        iTrain = iTrain[idx]                    
+
+
         # Prepare inputs and targets
         # --------------------------
         inputs  = self.getInputs(iTrain)
         targets = self.getTargets(iTrain) 
 
+
+        # Indices for testing set
+        # ------------------------
+        try:
+            iTest = self.iTest
+        except AttributeError:
+            iTest = self.iValid
+
+        # Prepare inputs and targets
+        # --------------------------
+        test_inputs  = self.getInputs(iTest)
+        test_targets = self.getTargets(iTest)
+        test1_targets = test_targets
+        if self.nTarget == 1:
+            test1_targets.shape = test1_targets.shape + (1,)
+
         # Train
         # -----
 #        bounds = [-1000,1000]
 #        maxfun = 10000
+#        maxfun = 50000
         bounds = [bounds]*self.net.conec.shape[0]
         if self.verbose>0:
             print("Starting training with %s inputs and %s targets"\
                   %(str(inputs.shape),str(targets.shape)))
-        self.net.train_tnc(inputs,targets, maxfun=maxfun,bounds=bounds,**kwargs)
-#        self.net.train_bfgs(inputs,targets, maxfun=maxfun)
 
+#        nfun = 10*len(self.net.weights)
+        nfun = 2550
+        for e in range(0,maxfun):
+            epoch = e0 + e
+            print('epoch',epoch,'epoch cnt',e,'nepoch',maxfun,'nfun',nfun)
+            rc = self.train_tnc_aeroml(inputs,targets, maxfun=nfun,bounds=bounds,**kwargs)
+            esqerr.append(self.net.sqerror(inputs,targets))
+
+            # len(regression) = nTarget
+            # regression[*][0:2] = slope, intercept, r-value
+            # out.shape = [ntestobs,nTarget]
+            # ------------------------
+            output, reg = self.net.test(test_inputs,test_targets,iprint=False)
+
+            # get other NNR STATS
+            ermse.append(rmse(output,test1_targets))
+            emae.append(mae(output,test1_targets))
+            eme.append(me(output,test1_targets))
+            enetFile = f"{netFile[:-4]}.{int(epoch):03d}.net"
+            self.savenet(enetFile)
+
+            if rc != 3:
+                print('fmin_tnc return code ',rc)
+                break # Exit for loop
+
+#        self.net.train_tnc(inputs,targets, maxfun=maxfun,bounds=bounds,**kwargs)
+#        self.net.train_bfgs(inputs,targets, maxfun=maxfun)
+        self.ermse = ermse
+        self.emae  = emae
+        self.eme   = eme
+        self.esqerr = esqerr
 
     def test(self,iprint=1,fname=None):
 

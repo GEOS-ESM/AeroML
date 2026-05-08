@@ -476,6 +476,8 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC,EVAL):
                   outliers=3., 
                   laod=True,
                   scale=False,
+                  near_zero_weight_epsilon=None,
+                  exp_weight_percentile=None,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -497,6 +499,8 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC,EVAL):
         logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
+        near_zero_weight_epsilon --- if not None, this is the epsilon value to be used for near-zero weighting during training
+        exp_weight_percentile --- if not None, this is the percentile value to be used for exponential weighting during training
 
 
         Reads in two Albedo variables
@@ -511,6 +515,8 @@ class ABC_DT_Ocean (DT_OCEAN,NN,SETUP,ABC,EVAL):
         self.verbose = verbose
         self.laod    = laod
         self.scale   = scale
+        self.near_zero_weight_epsilon = near_zero_weight_epsilon
+        self.exp_weight_percentile    = exp_weight_percentile
         self.logoffset = logoffset
 
         DT_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
@@ -583,6 +589,8 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC,EVAL):
                   outliers=3.,
                   laod=True,
                   scale=False,
+                  near_zero_weight_epsilon=None,
+                  exp_weight_percentile=None,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -604,7 +612,8 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC,EVAL):
         logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax.
                      set to  None to read entire data record.
-
+        near_zero_weight_epsilon --- if not None, this is the epsilon value to be used for near-zero weighting during training
+        exp_weight_percentile --- if not None, this is the percentile value to be used for exponential weighting during training
 
         Reads in two Albedo variables
               albedo - cox munk lut that parameterizes albedo with wind speed
@@ -618,6 +627,8 @@ class ABC_DB_Ocean (DB_OCEAN,NN,SETUP,ABC,EVAL):
         self.verbose = verbose
         self.laod    = laod
         self.scale   = scale
+        self.near_zero_weight_epsilon = near_zero_weight_epsilon
+        self.exp_weight_percentile = exp_weight_percentile
         self.logoffset = logoffset
 
         DB_OCEAN.__init__(self,fname,tymemax=tymemax) # initialize superclass
@@ -696,6 +707,8 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
                   outliers=3.,
                   laod=True,
                   scale=False,
+                  near_zero_weight_epsilon=None,
+                  exp_weight_percentile=None,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -719,12 +732,16 @@ class ABC_DT_Land (DT_LAND,NN,SETUP,ABC,EVAL):
         logoffset -- offset to protect against taking log of 0 or negative
         tymemax ---  truncate the data record in the giant file at tymemax. 
                      set to  None to read entire data record.
+        near_zero_weight_epsilon --- if not None, this is the epsilon value to be used for near-zero weighting during training
+        exp_weight_percentile --- if not None, this is the percentile value to be used for exponential weighting during training
         """
 
         self.verbose = verbose
         self.laod = laod
         self.logoffset = logoffset
         self.scale = scale
+        self.near_zero_weight_epsilon = near_zero_weight_epsilon
+        self.exp_weight_percentile = exp_weight_percentile
 
         DT_LAND.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -790,6 +807,8 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC,EVAL):
                   outliers=3.,
                   laod=True,
                   scale=False,
+                  near_zero_weight_epsilon=None,
+                  exp_weight_percentile=None,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -820,6 +839,8 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC,EVAL):
                      1 - vegetated surface
                      2 - bright surface
                      3 - mixed
+        near_zero_weight_epsilon --- if not None, this is the epsilon value to be used for near-zero weighting during training
+        exp_weight_percentile --- if not None, this is the percentile value to be used for exponential weighting during training
         """
 
         self.verbose = verbose
@@ -827,6 +848,8 @@ class ABC_DB_Deep (DB_DEEP,NN,SETUP,ABC,EVAL):
         self.logoffset = logoffset
         self.algflag = algflag
         self.scale = scale
+        self.near_zero_weight_epsilon = near_zero_weight_epsilon
+        self.exp_weight_percentile = exp_weight_percentile
 
         DB_DEEP.__init__(self,fname,tymemax=tymemax)  # initialize superclass
 
@@ -901,6 +924,8 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
                   outliers=3.,
                   laod=True,
                   scale=False,
+                  near_zero_weight_epsilon=None,
+                  exp_weight_percentile=None,
                   logoffset=0.01,
                   verbose=0,
                   cloud_thresh=0.70,
@@ -931,11 +956,15 @@ class ABC_DB_Land (DB_LAND,NN,SETUP,ABC,EVAL):
                      1 - vegetated surface
                      2 - bright surface
                      3 - mixed
+        near_zero_weight_epsilon --- if not None, this is the epsilon value to be used for near-zero weighting during training
+        exp_weight_percentile --- if not None, this is the percentile value to be used for exponential weighting during training
         """
 
         self.verbose = verbose
         self.laod = laod
         self.scale = scale
+        self.near_zero_weight_epsilon = near_zero_weight_epsilon
+        self.exp_weight_percentile = exp_weight_percentile
         self.logoffset = logoffset
         self.algflag = algflag
 
@@ -1019,7 +1048,7 @@ class STATS(object):
         self.me        = np.ones([k,c,nTarget])*np.nan
 
 #---------------------------------------------------------------------
-def _train(mxd,expid,c):
+def _train(mxd,expid,c,newnet=False,kwargs=None):
 
     ident  = mxd.ident
     outdir = mxd.outdir
@@ -1035,10 +1064,14 @@ def _train(mxd,expid,c):
     print("-->  Inputs = ", Input)
   
     n = cpu_count()
-    kwargs = {'nproc' : n}
+    if kwargs:
+        kwargs['nproc'] = n
+    else:
+        kwargs = {'nproc' : n}
     if mxd.K is None:
-        mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-        mxd.savenet(outdir+"/"+expid+'_Tau.net')    
+        netFile = outdir+"/"+expid+'_Tau.net'
+        mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,newnet=newnet,netFile=netFile,**kwargs)
+        mxd.savenet(netFile)    
     else:
         k = 1
         for iTrain, iTest in mxd.kf.split(np.arange(np.sum(mxd.iValid))):
@@ -1047,8 +1080,10 @@ def _train(mxd,expid,c):
             mxd.iTrain = iValid[iTrain]
             mxd.iTest  = iValid[iTest]
  
-            mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,**kwargs)
-            mxd.savenet(outdir+"/"+expid+'.k={}_Tau.net'.format(str(k)))
+            netFile = outdir+"/"+expid+'.k={}_Tau.net'.format(str(k))
+            kwargs['netFile'] = netFile
+            mxd.train(Input=Input,Target=Target,nHidden=nHidden,topology=topology,newnet=newnet,netFile=netFile,**kwargs)
+            mxd.savenet(netFile)
             k = k + 1
 #--------------------------------------------------------------------------------------
 
@@ -1123,14 +1158,14 @@ def _test(mxd,expid,c,plotting=True):
             k = k + 1    
 
 #---------------------------------------------------------------------
-def _trainMODIS(mxdx):
+def _trainMODIS(mxdx,newnet=False,kwargs=None):
 
     if not mxdx.combinations:
         Input = mxdx.comblist[0]
-        _train(mxdx,'.'.join(Input),0)
+        _train(mxdx,'.'.join(Input),0,newnet=newnet,kwargs=kwargs)
     else:
         for c,Input in enumerate(mxdx.comblist):
-            _train(mxdx,'.'.join(Input),c)
+            _train(mxdx,'.'.join(Input),c,newnet=newnet,kwargs=kwargs)
 
 # -------------------------------------------------------------------
 def _testMODIS(mxdx):

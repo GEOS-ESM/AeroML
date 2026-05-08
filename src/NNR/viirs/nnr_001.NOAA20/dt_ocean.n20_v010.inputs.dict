@@ -1,10 +1,10 @@
 # inputs
 
 dict(
-    giantFile = ('/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*nc',
-                  '/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*nc'),
-    aerFile = ('/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*MERRA2*npz',
-                '/nobackup/NNR/Training/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*MERRA2*npz'),
+    giantFile = ('/nobackup/NNR/Training/dx15/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*nc',
+                  '/nobackup/NNR/Training/dx15/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*nc'),
+    aerFile = ('/nobackup/NNR/Training/dx15/002/giant_C002_10km_NOAA-20_v3.0_201[8-9]*MERRA2*npz',
+                '/nobackup/NNR/Training/dx15/002/giant_C002_10km_NOAA-20_v3.0_202[0-4]*MERRA2*npz'),
 
 # tymemax sets a truncation date when reading in giant file
 # string with format YYYYMMDD
@@ -34,7 +34,7 @@ dict(
     doTest       = True,
 
 # experiment name
-    expid        = 'n20_v005',
+    expid        = 'n20_v010',
 
 # NN target variable name
     Target = ['aTau550'],
@@ -56,14 +56,17 @@ dict(
 # are tried
 
     Input_nnr    = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-                   'fdu','fcc','fss',
+                   'fdu','fcc','fsu',
+#                   'mTau550',
                    'mRef480','mRef550','mRef670', 'mRef860','mRef1240','mRef1600','mRef2250'],
 
 # Inputs I want to the the log-transform of
     lInput_nnr = ['SolarZenith','ScatteringAngle', 'GlintAngle',
-                  'mTau550',
+#                  'mTau550',
                   'mRef480','mRef550','mRef670', 'mRef860','mRef1240','mRef1600','mRef2250',
-                  'fdu','fcc','fss'],
+                  'fdu','fcc','fsu'],
+
+#    lInput_nnr = [],
 
 # Additional variables that the inputs are filtered by
 # standard filters are hardcoded in the abc_c6.py scripts
@@ -95,9 +98,21 @@ dict(
 
 # offset to protect against negative numbers.
 # detault is 0.01
-    logoffset = 0.01,
+    logoffset = 0.02,
 
 # standard scale the targets
-    scale = False,    
+    scale = False,   
+
+# oversample target values less than epsilon value
+# default is None, don't do weighting
+    near_zero_weight_epsilon = None,   
+
+# oversample inputs values greater than percentile
+# default is None, don't do weighting
+    exp_weight_percentile = None,
+
+# training iterations
+# default if not provided is 1
+    maxfun = 20,
 )
 

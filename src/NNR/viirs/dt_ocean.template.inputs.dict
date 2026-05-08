@@ -103,6 +103,11 @@ dict(
     logoffset = 0.01,
 
 # standard scale the targets
-    scale = False,    
+    scale = False,   
+
+# oversample values less than epsilon value
+# default is None, don't do weighting
+    near_zero_weight_epsilon = 0.05,
+    
 )
 

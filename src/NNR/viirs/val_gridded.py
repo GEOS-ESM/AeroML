@@ -252,13 +252,13 @@ def process_season(year, season_name, months, dataset_keys=None, do_plot=False, 
             for surf_key in ['dt_land', 'dt_ocean', 'db_deep']:
                 if modis_data.get(surf_key) is not None or viirs_data.get(surf_key) is not None:
                     surf_label = DATASETS['modis']['surface_types'][surf_key]['label']
-                    plot_file = season_dir / f"combined_{var_name}_{surf_key}_{year}{season_name}.pdf"
+                    plot_file = season_dir / f"combined_{var_name}_{surf_key}_{year}{season_name}.png"
                     title = f"{surf_label} - {var_name} - {year}-{season_name} (Collocated)"
                     plot_comparison_maps(modis_data.get(surf_key), viirs_data.get(surf_key), season_name, output_filename=plot_file)
                     print(f"    Saved Plot: {plot_file.name}")
                     
             if modis_merged is not None or viirs_merged is not None:
-                plot_file = season_dir / f"combined_{var_name}_merged_{year}{season_name}.pdf"
+                plot_file = season_dir / f"combined_{var_name}_merged_{year}{season_name}.png"
                 title = f"Merged All Surface Types - {var_name} - {year}-{season_name} (Collocated)"
                 plot_comparison_maps(modis_merged, viirs_merged, season_name, output_filename=plot_file)
                 print(f"    Saved Plot: {plot_file.name}")
@@ -396,7 +396,7 @@ def plot_comparison_maps(control_data, noaa20_data, season, output_filename=None
         plt.savefig(output_filename, dpi=150, bbox_inches='tight')
         print(f"Plot saved as: {output_filename}")
 
-    plt.show()
+#    plt.show()
 
 
 if __name__ == '__main__':

@@ -4,10 +4,10 @@ import os
 ret = 'tau'
 prod = 'merged'
 image_files = [
-        f'seasonal_maps/2019MAM/combined_{ret}_{prod}_2019MAM.pdf',
-        f'seasonal_maps/2019JJA/combined_{ret}_{prod}_2019JJA.pdf',
-        f'seasonal_maps/2019SON/combined_{ret}_{prod}_2019SON.pdf',
-        f'seasonal_maps/2019DJF/combined_{ret}_{prod}_2019DJF.pdf'
+        f'seasonal_maps/2019MAM/combined_{ret}_{prod}_2019MAM.png',
+        f'seasonal_maps/2019JJA/combined_{ret}_{prod}_2019JJA.png',
+        f'seasonal_maps/2019SON/combined_{ret}_{prod}_2019SON.png',
+        f'seasonal_maps/2019DJF/combined_{ret}_{prod}_2019DJF.png'
         ]
 out_file = f'seasonal_maps/combined_{ret}_{prod}_2019.pdf'
 

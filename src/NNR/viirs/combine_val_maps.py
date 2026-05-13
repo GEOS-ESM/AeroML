@@ -2,13 +2,14 @@ from PIL import Image
 import os
 
 ret = 'tau'
+prod = 'merged'
 image_files = [
-        f'seasonal_maps/2019MAM/combined_{ret}_merged_2019MAM.pdf',
-        f'seasonal_maps/2019JJA/combined_{ret}_merged_2019JJA.pdf',
-        f'seasonal_maps/2019SON/combined_{ret}_merged_2019SON.pdf',
-        f'seasonal_maps/2019DJF/combined_{ret}_merged_2019DJF.pdf'
+        f'seasonal_maps/2019MAM/combined_{ret}_{prod}_2019MAM.pdf',
+        f'seasonal_maps/2019JJA/combined_{ret}_{prod}_2019JJA.pdf',
+        f'seasonal_maps/2019SON/combined_{ret}_{prod}_2019SON.pdf',
+        f'seasonal_maps/2019DJF/combined_{ret}_{prod}_2019DJF.pdf'
         ]
-out_file = f'seasonal_maps/combined_{ret}_merged_2019.pdf'
+out_file = f'seasonal_maps/combined_{ret}_{prod}_2019.pdf'
 
 
 # Open all images and check their sizes

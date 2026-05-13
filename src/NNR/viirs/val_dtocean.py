@@ -47,13 +47,17 @@ def _plot2dKDE(x_values,y_values,x_bins=None,y_bins=None,
 
     # --- Calculate Statistics ---
     N = len(x_values)
-    bias = np.mean(np.array(y_values) - np.array(x_values))
+    diff = np.array(y_values) - np.array(x_values)
+    bias = np.mean(diff)
     # Calculate R-squared using Pearson correlation coefficient
     r_val = np.corrcoef(x_values, y_values)[0, 1]
     r2 = r_val**2
-    
+
+    # Calculate RMSE
+    rmse = np.sqrt(np.mean(diff**2))
+
     # Create the text string for the legend box
-    stat_str = f"N = {N}\n$R^2$ = {r2:.3f}\nBias = {bias:.3f}"
+    stat_str = f"N = {N}\n$R^2$ = {r2:.3f}\nBias = {bias:.3f}\nRMSE = {rmse:.3f}"
 
 
     formatter = aodFormat()
@@ -78,7 +82,7 @@ def _plot2dKDE(x_values,y_values,x_bins=None,y_bins=None,
 #            verticalalignment='top', horizontalalignment='left', bbox=props)
 
     # Place text in the upper right corner of the axes
-    ax.text(0.70, 0.95, stat_str, transform=ax.transAxes, fontsize=10,
+    ax.text(0.70, 0.97, stat_str, transform=ax.transAxes, fontsize=10,
             verticalalignment='top', horizontalalignment='left', bbox=props)    
 
 

@@ -293,8 +293,8 @@ def plot_comparison_maps(control_data, noaa20_data, season, output_filename=None
         # Add map features
         ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
         ax.add_feature(cfeature.BORDERS, linewidth=0.3)
-        ax.add_feature(cfeature.OCEAN, color='lightblue', alpha=0.3)
-        ax.add_feature(cfeature.LAND, color='lightgray', alpha=0.3)
+        ax.add_feature(cfeature.OCEAN, color='gray', alpha=0.5)
+        ax.add_feature(cfeature.LAND, color='gray', alpha=0.5)
 
         # Set global extent
         ax.set_global()

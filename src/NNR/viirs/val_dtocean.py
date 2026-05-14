@@ -150,6 +150,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("inputs",
                         help="python file with dictionary of inputs")
+    parser.add_argument("--test",action='store_true',
+                        help="this is a testing dataset")
+
 
     args = parser.parse_args()
 
@@ -328,7 +331,10 @@ if __name__ == "__main__":
 
     # create directory for saving plots
     # -----------------------------------
-    outdir = 'val_dtocean_plots'
+    if args.test:
+        outdir = 'test_dtocean_plots'
+    else:
+        outdir = 'val_dtocean_plots'
     os.makedirs(outdir,exist_ok=True)
 
     invars = ocean.comblist[0]

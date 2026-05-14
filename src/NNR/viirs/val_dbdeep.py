@@ -147,6 +147,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("inputs",
                         help="python file with dictionary of inputs")
+    parser.add_argument("--test",
+                        help="this is a test dataset")    
     args = parser.parse_args()
 
     # read in dictionary of input parameters
@@ -318,7 +320,11 @@ if __name__ == "__main__":
 
     # create directory for saving plots
     # -----------------------------------
-    outdir = 'val_dbdeep_plots'
+    if args.test:
+        outdir = 'test_dbdeep_plots'
+    else:
+        outdir = 'val_dbdeep_plots'
+
     os.makedirs(outdir,exist_ok=True)
 
     invars = deep.comblist[0]

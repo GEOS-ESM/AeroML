@@ -3,14 +3,15 @@ from PIL import Image, ImageChops
 
 #out = '_outliers'
 out = ''
+val='val'
 image_files = [
-        f'val_dtocean_plots/kde2d_dtocean{out}.png',
-        f'val_dtland_plots/kde2d_dtland{out}.png',
-        f'val_dbdeep_plots/kde2d_dbdeep{out}.png'
+        f'{val}_dtocean_plots/kde2d_dtocean{out}.png',
+        f'{val}_dtland_plots/kde2d_dtland{out}.png',
+        f'{val}_dbdeep_plots/kde2d_dbdeep{out}.png'
         ]
-out_file = f'val_all_plots/kde2d_all{out}.png'
+out_file = f'{val}_all_plots/kde2d_all{out}.png'
 
-os.makedirs('val_all_plots',exist_ok=True)
+os.makedirs(f'{val}_all_plots',exist_ok=True)
 
 
 def trim_white_background(img):

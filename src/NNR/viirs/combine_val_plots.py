@@ -1,12 +1,15 @@
 import os
 from PIL import Image, ImageChops
 
-ret = 'dtocean' 
+ret = 'dbdeep'
+#out = '_outliers'
+out = ''
+val = 'val'
 image_files = [
-        f'val_{ret}_plots/kde2d_{ret}_outliers_std.png',
-        f'val_{ret}_plots/kde2d_{ret}_outliers_nnr.png'
+        f'{val}_{ret}_plots/kde2d_{ret}{out}_std.png',
+        f'{val}_{ret}_plots/kde2d_{ret}{out}_nnr.png'
         ]
-out_file = f'val_{ret}_plots/kde2d_{ret}_outliers.png'
+out_file = f'{val}_{ret}_plots/kde2d_{ret}{out}.png'
 
 
 def trim_white_background(img):

@@ -374,7 +374,13 @@ if __name__ == "__main__":
                   fignore      = fignore,
                   nbins        = nbins)
 
-        deep_out.iTest[deep.outValid][deep.iTrain] = False
+        if args.test:
+            # Filter the valid indices to only include the ones where iTrain is True
+            target_indices = deep.outValid[deep.iTrain]
+
+            # Apply that directly to the original array in a single set of brackets
+            deep_out.iTest[target_indices] = False
+            
 
         # load the net
         deep_out.net = deep.net

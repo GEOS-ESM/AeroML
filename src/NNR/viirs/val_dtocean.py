@@ -384,7 +384,12 @@ if __name__ == "__main__":
                   fignore      = fignore,
                   nbins        = nbins)           
 
-        ocean_out.iTest[ocean.outValid][ocean.iTrain] = False
+        if args.test:
+            # Filter the valid indices to only include the ones where iTrain is True
+            target_indices = ocean.outValid[ocean.iTrain]
+
+            # Apply that directly to the original array in a single set of brackets
+            ocean_out.iTest[target_indices] = False            
 
 
         # load the net

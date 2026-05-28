@@ -7,6 +7,9 @@
 
 ### Changed
 
+## [v1.5.1] 2026-05-28
+### Fixed
+- bug fix in vx04_nnr when indexing possibly cloud contaminated pixels
  
 ## [v1.5.0] 2026-01-22
 ### Changed

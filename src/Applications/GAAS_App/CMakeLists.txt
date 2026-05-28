@@ -9,11 +9,17 @@ install(
    DESTINATION lib/Python
    )
 
-file(GLOB pcf_files *.pcf)
+file(GLOB perl_files CONFIGURE_DEPENDS *.pl)
+file(GLOB pcf_files CONFIGURE_DEPENDS *.pcf)
 
 install (
    FILES ${pcf_files}
    DESTINATION etc
+   )
+
+install (
+   PROGRAMS ${perl_files}
+   DESTINATION bin
    )
 
 ### MODIS 

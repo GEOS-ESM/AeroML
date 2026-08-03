@@ -1,5 +1,14 @@
 esma_set_this()
 
+### IODA
+set(pythonscripts script_offline_ods.py)
+install(PROGRAMS ${pythonscripts}  DESTINATION bin)
+
+install(
+   FILES simple_reader_nnr_ods.py writeIODA.py
+   DESTINATION lib/Python
+   )
+
 ### AVHRR
 set(pythonscripts avhrr_l2a.py patmosx_l2a.py)
 install(PROGRAMS ${pythonscripts}  DESTINATION bin)

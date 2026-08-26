@@ -167,6 +167,9 @@ class Vx04_NNR(Vx04_L2):
         if "OCEAN" in algo:
             self.iGood = self.iGood & (self.GlintAngle > glint_thresh)
 
+        # Safely convert to standard boolean array (works for both masked and unmasked)
+        self.iGood = np.ma.filled(self.iGood, fill_value=False)
+
         if np.any(self.iGood) == False:
             print("WARNING: Strange, no good obs left to work with")
             return

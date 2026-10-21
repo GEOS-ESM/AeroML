@@ -7,6 +7,13 @@
 
 ### Changed
 
+## [v1.6.0] 2026-10-21
+
+### Changed
+
+- update NRT version path in `src/Applications/GAAS_App/viirs/viirs_l2a.pcf`
+- Update to GMAOpyobs v1.8.0
+
 ## [v1.5.1] 2026-05-28
 ### Fixed
 - bug fix in vx04_nnr when indexing possibly cloud contaminated pixels

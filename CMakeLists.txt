@@ -10,7 +10,7 @@ cmake_policy (SET CMP0054 NEW)
 
 project (
   AeroML
-  VERSION 1.0.0
+  VERSION 1.6.0
   LANGUAGES Fortran CXX C)  # Note - CXX is required for ESMF
 
 # Enforce out of source directory builds
@@ -23,14 +23,14 @@ project (
 # Set the default build type to release
 # -------------------------------------
 if (NOT CMAKE_BUILD_TYPE)
-  
+
      message (STATUS "Setting build type to 'Release' as none was specified.")
      set (CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-     
+
      # Set the possible values of build type for cmake-gui
      # ---------------------------------------------------
      set_property (CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-                   "Debug" "Release" "Aggressive") 
+                   "Debug" "Release" "Aggressive")
   endif ()
 
 # Where to find relevant cmake macros

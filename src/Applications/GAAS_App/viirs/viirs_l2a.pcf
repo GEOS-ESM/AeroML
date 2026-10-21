@@ -9,7 +9,7 @@ VIIRS_L2A_VERBOSE         = YES
 
 VIIRS_L2A_EXPID           = ${EXPID}
 VIIRS_L2A_IDENTS          = vn20dbd,vn20dtl,vn20dto
-VIIRS_L2A_COLLECTION      = 002,002,002
+VIIRS_L2A_COLLECTION      = 002,022,022
 
 VIIRS_L2A_L2_DIR          = ${FVWORK}
 VIIRS_L2A_OUT_DIR         = ${FVWORK}
@@ -25,7 +25,7 @@ VIIRS_L2A_AER_X           = %s.gaas_bkg.sfc.%y4%m2%d2_%h2z.nc4
 VIIRS_L2A_NN_FILE         = ExtData/g5chem/x/NN/nnr_001.%ident.net
 VIIRS_L2A_BLANK_ODS       = ExtData/g5chem/x/blank_syn8.ods
 
-VIIRS_L2A_DT_CLD_COLL     = 002
+VIIRS_L2A_DT_CLD_COLL     = 022
 VIIRS_L2A_USE_DT_FILTER   = YES
 
 VIIRS_L2A_CLOUD_THRESH    = 0.1
